@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en" class="dark"> <!-- Default to dark mode class -->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dia TTS Server | Text-to-Dialogue</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <!-- Tailwind CSS (CDN for simplicity, processes styles in <style type="text/tailwindcss"> below) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configure Tailwind CSS
+        tailwind.config = {
+            darkMode: 'class', // Enable class-based dark mode
+            theme: {
+                extend: {
+                    colors: {
+                        // Define color palettes used in style.css
+                        // Light Mode Colors (Examples - Adjust as needed)
+                        gray: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827' },
+                        sky: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' },
+                        indigo: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' },
+                        red: { 100: '#fee2e2', 300: '#fca5a5', 500: '#ef4444', 600: '#dc2626', 800: '#991b1b', 900: '#7f1d1d' },
+                        green: { 100: '#dcfce7', 300: '#86efac', 500: '#22c55e', 800: '#166534', 900: '#14532d' },
+                        yellow: { 100: '#fef9c3', 300: '#fcd34d', 500: '#eab308', 700: '#b45309', 900: '#78350f' },
+
+                        // Dark Mode Colors (Copied from previous inline config)
+                        primary: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' },
+                        purple: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce', 800: '#6b21a8', 900: '#581c87' },
+                        dark: { 50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db', 400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151', 800: '#1f2937', 900: '#111827', 950: '#030712', 1000: '#0f1729' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Removed External Stylesheet Link: <link rel="stylesheet" href="/ui/style.css"> -->
+    <!-- Wavesurfer for audio visualization -->
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+
+    <style type="text/tailwindcss">
+        /* ui/style.css */
+
+        /* Import Tailwind base, components, and utilities */
+        @tailwind base;
+        @tailwind components;
+        @tailwind utilities;
+
+        /* Define custom components/utilities */
+        @layer components {
+
+            /* Base styles (Light Mode) */
+            .body-base {
+                @apply h-full bg-gray-100 text-gray-900;
+            }
+
+            .nav-base {
+                @apply bg-gradient-to-r from-white to-sky-100 border-b border-sky-200 shadow-md;
+            }
+
+            .nav-link {
+                @apply text-sky-700 hover:text-sky-900 px-3 py-2 rounded-md text-sm font-medium;
+            }
+
+            .title-link {
+                @apply text-gray-900 text-xl font-bold;
+            }
+
+            .card-base {
+                @apply bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200;
+            }
+
+            .card-header {
+                @apply text-lg font-medium text-gray-900 mb-4;
+            }
+
+            .card-footer {
+                @apply bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200;
+            }
+
+            .label-base {
+                @apply block text-sm font-medium text-gray-700 mb-1;
+            }
+
+            .input-base {
+                @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-sky-500 focus:ring-sky-500 sm:text-sm px-3 py-2 bg-white text-gray-900 placeholder-gray-400;
+            }
+
+            .textarea-base {
+                @apply input-base;
+                /* Inherit base input styles */
+            }
+
+            .select-base {
+                @apply input-base appearance-none pr-8;
+                /* Add padding for arrow */
+                /* Consider adding a background SVG for the dropdown arrow */
+            }
+
+            .button-base {
+                @apply inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0;
+                /* Added whitespace-nowrap and flex-shrink-0 for button text */
+            }
+
+            .btn-primary {
+                @apply button-base bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-500;
+            }
+
+            .btn-secondary {
+                @apply button-base bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300 focus:ring-indigo-500;
+                /* Example secondary */
+            }
+
+            .btn-danger {
+                @apply button-base bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+            }
+
+            .btn-purple {
+                @apply button-base bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500;
+            }
+
+            .slider-base {
+                @apply w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer;
+                /* Need to style the thumb separately per browser */
+            }
+
+            .slider-thumb {
+                /* Basic thumb styling */
+                @apply appearance-none w-5 h-5 bg-sky-600 rounded-full cursor-pointer;
+            }
+
+            .radio-label {
+                @apply flex items-center space-x-2 cursor-pointer border border-gray-300 bg-white hover:border-sky-400 p-3 rounded-md transition-colors;
+            }
+
+            .radio-label-text {
+                @apply text-gray-700;
+            }
+
+            /* Apply checked styles directly using peer-checked utility on the container/text span */
+            /* .radio-label input:checked+span {
+                @apply text-sky-600 font-semibold;
+            }
+
+            .radio-label-checked {
+                @apply border-sky-500 ring-2 ring-sky-500;
+            } */
+            /* Replaced these custom classes with Tailwind peer utilities in the HTML */
+
+
+            .preset-button {
+                @apply button-base bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200 focus:ring-indigo-500 text-xs px-3 py-1;
+            }
+
+            .notification-base {
+                @apply px-4 py-3 rounded relative shadow-md flex items-center mb-3;
+                /* Reduced margin bottom */
+            }
+
+            .notification-success {
+                @apply notification-base bg-green-100 border border-green-300 text-green-800;
+            }
+
+            .notification-error {
+                @apply notification-base bg-red-100 border border-red-300 text-red-800;
+            }
+
+            .notification-warning {
+                @apply notification-base bg-yellow-100 border border-yellow-300 text-yellow-800;
+            }
+
+            .notification-info {
+                /* Added info style */
+                @apply notification-base bg-sky-100 border border-sky-300 text-sky-800;
+            }
+
+            .code-inline {
+                @apply bg-gray-200 px-1 rounded text-sm font-mono text-gray-800;
+            }
+
+            .tooltip {
+                /* Basic tooltip styling */
+                @apply absolute hidden group-hover:block bg-gray-700 text-white text-xs rounded py-1 px-2 z-10 -mt-8;
+            }
+
+            .loading-overlay-base {
+                @apply fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300;
+            }
+
+            .loading-box-base {
+                @apply bg-white p-6 rounded-lg shadow-xl flex flex-col items-center border border-gray-300;
+            }
+
+            .loading-spinner {
+                @apply animate-spin h-10 w-10 text-sky-600 mb-4;
+            }
+
+            .loading-text {
+                @apply text-gray-900 text-lg mb-2;
+            }
+
+            .loading-status {
+                @apply text-gray-600 text-sm mb-4 text-center max-w-xs;
+                /* Limit width */
+            }
+
+            .waveform-container {
+                @apply w-full h-24 bg-gray-100 rounded;
+            }
+
+            .audio-player-card {
+                @apply card-base mt-8;
+                /* Margin top for spacing */
+            }
+
+            .audio-player-controls {
+                @apply flex flex-wrap items-center justify-between gap-4;
+            }
+
+            .audio-player-buttons {
+                @apply flex items-center space-x-2 sm:space-x-4;
+                /* Adjust spacing */
+            }
+
+            .audio-player-info {
+                @apply text-sm text-gray-600 text-right;
+            }
+
+            .theme-switch {
+                @apply p-2 rounded-md text-gray-600 hover:bg-gray-200 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2;
+            }
+
+
+            /* Dark Mode Overrides using 'dark:' prefix */
+            .dark .body-base {
+                @apply bg-[#0f1729] text-white;
+                /* Original dark bg */
+            }
+
+            .dark .nav-base {
+                @apply bg-gradient-to-r from-dark-900 to-purple-900 border-b border-purple-800 shadow-lg;
+            }
+
+            .dark .nav-link {
+                @apply text-primary-300 hover:text-white;
+            }
+
+            .dark .title-link {
+                @apply text-white;
+            }
+
+            .dark .card-base {
+                @apply bg-dark-800 border border-dark-700;
+            }
+
+            .dark .card-header {
+                @apply text-white;
+            }
+
+            .dark .card-footer {
+                @apply bg-dark-900 border-t border-dark-700;
+            }
+
+            .dark .label-base {
+                @apply text-gray-300;
+                /* Lighter gray for dark */
+            }
+
+            .dark .input-base {
+                @apply border-dark-600 bg-dark-700 text-white placeholder-gray-500 focus:ring-offset-dark-800;
+            }
+
+            .dark .select-base {
+                /* Dark mode arrow styling if needed */
+            }
+
+            .dark .btn-primary {
+                @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 focus:ring-offset-dark-800;
+            }
+
+            .dark .btn-secondary {
+                @apply bg-dark-700 text-white border-dark-600 hover:bg-dark-600 focus:ring-purple-500 focus:ring-offset-dark-800;
+            }
+
+            .dark .btn-danger {
+                @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 focus:ring-offset-dark-800;
+            }
+
+            .dark .btn-purple {
+                @apply bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500 focus:ring-offset-dark-800;
+            }
+
+            .dark .slider-base {
+                @apply bg-dark-600;
+            }
+
+            .dark .slider-thumb {
+                @apply bg-primary-500;
+            }
+
+            .dark .radio-label {
+                @apply border-dark-600 bg-dark-800 hover:border-primary-400;
+            }
+
+            .dark .radio-label-text {
+                @apply text-gray-300;
+            }
+
+            /* Apply checked styles directly using peer-checked utility on the container/text span */
+            /* .dark .radio-label input:checked+span {
+                @apply text-primary-400;
+            }
+
+            .dark .radio-label-checked {
+                 @apply border-primary-500 ring-primary-500;
+            } */
+            /* Replaced these custom classes with Tailwind peer utilities in the HTML */
+
+
+            .dark .preset-button {
+                @apply bg-indigo-900 text-indigo-200 border-indigo-700 hover:bg-indigo-800 focus:ring-indigo-500 focus:ring-offset-dark-800;
+            }
+
+            .dark .notification-success {
+                @apply notification-base bg-green-900 border border-green-700 text-green-100;
+            }
+
+            .dark .notification-error {
+                @apply notification-base bg-red-900 border border-red-700 text-red-100;
+            }
+
+            .dark .notification-warning {
+                @apply notification-base bg-yellow-900 border border-yellow-700 text-yellow-100;
+            }
+
+            .dark .notification-info {
+                /* Added info style */
+                @apply notification-base bg-sky-900 border border-sky-700 text-sky-100;
+            }
+
+            .dark .code-inline {
+                @apply bg-dark-900 text-purple-300;
+            }
+
+            .dark .tooltip {
+                @apply bg-dark-950;
+            }
+
+            .dark .loading-overlay-base {
+                @apply bg-dark-900 bg-opacity-75;
+            }
+
+            .dark .loading-box-base {
+                @apply bg-dark-800 border border-dark-700;
+            }
+
+            .dark .loading-spinner {
+                @apply text-primary-500;
+            }
+
+            .dark .loading-text {
+                @apply text-white;
+            }
+
+            .dark .loading-status {
+                @apply text-gray-400;
+            }
+
+            .dark .waveform-container {
+                @apply bg-dark-900;
+            }
+
+            .dark .audio-player-info {
+                @apply text-purple-300;
+            }
+
+            .dark .theme-switch {
+                @apply text-gray-400 hover:bg-dark-700 hover:text-white focus:ring-offset-dark-900;
+            }
+
+        }
+
+        /* Specific slider thumb styling per browser */
+        /* Apply these within the <style> tag as they target pseudo-elements */
+        input[type="range"].slider-base::-webkit-slider-thumb {
+            @apply slider-thumb;
+        }
+
+        input[type="range"].slider-base::-moz-range-thumb {
+            @apply slider-thumb;
+        }
+
+        /* Dark mode thumbs need specific overrides if needed */
+        .dark input[type="range"].slider-base::-webkit-slider-thumb {
+            /* Apply dark mode thumb styles directly */
+            background-color: theme('colors.primary.500');
+            /* Replaced @apply dark:slider-thumb */
+            /* Inherit other base thumb styles if needed (like size, border-radius) or re-apply */
+            @apply appearance-none w-5 h-5 rounded-full cursor-pointer;
+        }
+
+        .dark input[type="range"].slider-base::-moz-range-thumb {
+            /* Apply dark mode thumb styles directly */
+            background-color: theme('colors.primary.500');
+            /* Replaced @apply dark:slider-thumb */
+            /* Inherit other base thumb styles if needed or re-apply */
+            @apply appearance-none w-5 h-5 rounded-full cursor-pointer;
+        }
+    </style>
+</head>
+
+<body class="body-base">
+    <div class="min-h-full">
+        <!-- Navigation -->
+        <nav class="nav-base">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <!-- Make title clickable -->
+                            <a href="/" class="title-link">Dia TTS Server</a>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 sm:space-x-4">
+                        <a href="/docs" target="_blank" class="nav-link">API Docs</a>
+                        <!-- Theme Toggle Button -->
+                        <button id="theme-toggle-btn" type="button"
+                            class="relative inline-flex items-center p-1 rounded-full bg-gray-200 dark:bg-dark-700 h-8 w-16 transition-colors"
+                            title="Toggle light/dark mode">
+                            <span class="sr-only">Toggle theme</span>
+                            <span class="absolute inset-0 rounded-full transition-colors"></span>
+                            <!-- Toggle thumb with icons -->
+                            <span
+                                class="relative rounded-full w-6 h-6 bg-white dark:bg-purple-600 transform transition-transform duration-200 ease-in-out translate-x-0 dark:translate-x-8 flex items-center justify-center shadow-md">
+                                <!-- Sun icon (for light mode) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                    class="w-4 h-4 text-yellow-500 dark:opacity-0 transition-opacity">
+                                    <path
+                                        d="M10 2a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 2ZM10 15a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 10 15ZM10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+                                </svg>
+                                <!-- Moon icon (for dark mode) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                    class="w-4 h-4 text-white opacity-0 dark:opacity-100 transition-opacity">
+                                    <path
+                                        d="M7.455 1.75A8.5 8.5 0 0 1 18.25 12.55a8.5 8.5 0 0 1-8.46 8.46A8.5 8.5 0 0 1 1.75 12.55a8.5 8.5 0 0 1 5.705-10.8Z" />
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main content -->
+        <main>
+            <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+
+                <!-- Notification area -->
+                <div id="notification-area" class="mb-6 space-y-3">
+                    {% if error %}
+                    <div class="notification-error" role="alert">
+                        <svg class="h-5 w-5 text-red-500 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="block sm:inline">{{ error }}</span>
+                    </div>
+                    {% endif %}
+                    {% if success %}
+                    <div class="notification-success" role="alert">
+                        <svg class="h-5 w-5 text-green-500 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="block sm:inline">{{ success }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- TTS form -->
+                <div class="card-base">
+                    <form id="tts-form" action="/web/generate" method="post" class="flex flex-col">
+                        <div class="p-6">
+                            <h2 class="card-header">Generate Speech with Dia</h2>
+
+                            <!-- Text input -->
+                            <div class="mb-6">
+                                <label for="text" class="label-base">Text to speak</label>
+                                <p class="text-xs text-purple-500 dark:text-purple-300 mb-2">
+                                    Use <code class="code-inline">[S1]</code> and <code class="code-inline">[S2]</code>
+                                    tags for speaker turns. Add non-verbals like <code
+                                        class="code-inline">(laughs)</code>.
+                                </p>
+                                <div class="relative">
+                                    <textarea name="text" id="text" rows="5" maxlength="8192" class="textarea-base"
+                                        placeholder="Example: [S1] Hello there! [S2] Hi! How are you? [S1] I'm doing well, thanks. (laughs)"
+                                        required>{{ submitted_text if submitted_text else "" }}</textarea>
+                                    <div class="absolute bottom-2 right-2 text-xs text-gray-500 dark:text-purple-300">
+                                        <span id="char-count">0</span> / 8192
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Voice Mode Selection -->
+                            <div class="mb-6">
+                                <label class="label-base mb-2">Voice Mode</label>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <!-- Combined Dialogue / Single Speaker Mode -->
+                                    <label
+                                        class="radio-label peer-checked:border-sky-500 peer-checked:dark:border-primary-500 peer-checked:ring-2 peer-checked:ring-sky-500 peer-checked:dark:ring-primary-500">
+                                        <input type="radio" name="voice_mode" value="dialogue" class="hidden peer" {% if
+                                            submitted_voice_mode=='dialogue' or not submitted_voice_mode %}checked{%
+                                            endif %} onchange="toggleCloneOptions()">
+                                        <span
+                                            class="radio-label-text peer-checked:text-sky-600 dark:peer-checked:text-primary-400 peer-checked:font-semibold">
+                                            Single / Dialogue (Use [S1]/[S2])
+                                        </span>
+                                    </label>
+                                    <!-- Clone Mode -->
+                                    <label
+                                        class="radio-label peer-checked:border-sky-500 peer-checked:dark:border-primary-500 peer-checked:ring-2 peer-checked:ring-sky-500 peer-checked:dark:ring-primary-500">
+                                        <input type="radio" name="voice_mode" value="clone" class="hidden peer" {% if
+                                            submitted_voice_mode=='clone' %}checked{% endif %}
+                                            onchange="toggleCloneOptions()">
+                                        <span
+                                            class="radio-label-text peer-checked:text-sky-600 dark:peer-checked:text-primary-400 peer-checked:font-semibold">
+                                            Voice Clone (from Reference)
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Presets Section -->
+                            <div class="mb-6">
+                                <label class="label-base mb-2">Load Example Preset</label>
+                                <div id="presets-container" class="flex flex-wrap gap-2">
+                                    {% if presets %}
+                                    {% for preset in presets %}
+                                    <button type="button" id="preset-btn-{{ loop.index0 }}" class="preset-button"
+                                        title="Load '{{ preset.name }}' text and settings">
+                                        {{ preset.name }}
+                                    </button>
+                                    {% endfor %}
+                                    {% else %}
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">No presets loaded. Check
+                                        presets.yaml.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+
+                            <!-- Clone Options (Hidden by default) -->
+                            <div id="clone-options" class="mb-6 hidden">
+                                <label for="clone_reference_select" class="label-base">Reference Audio File</label>
+                                <p class="text-xs text-purple-500 dark:text-purple-300 mb-2">
+                                    Select a <code class="code-inline">.wav</code> or <code
+                                        class="code-inline">.mp3</code> file from the <code
+                                        class="code-inline">reference_audio</code> folder.
+                                    <strong class="dark:text-yellow-300 text-yellow-600">Important:</strong> Prepend the
+                                    exact transcript of this audio to your text input above for best results.
+                                </p>
+                                <div class="flex items-center gap-2">
+                                    <select id="clone_reference_select" name="clone_reference_select"
+                                        class="select-base flex-grow">
+                                        <option value="none" {% if not submitted_clone_file %}selected{% endif %}>--
+                                            Select Reference File --</option>
+                                        {% for filename in reference_files %}
+                                        <option value="{{ filename }}" {% if submitted_clone_file==filename %}selected{%
+                                            endif %}>{{ filename }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <!-- Hidden file input triggered by the button -->
+                                    <input type="file" id="clone-file-input" class="hidden" multiple accept=".wav,.mp3"
+                                        aria-label="Upload reference audio file">
+                                    <!-- Modified Load Button -->
+                                    <button type="button" id="clone-load-button" class="btn-secondary hidden"
+                                        title="Upload new reference files">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                            class="w-5 h-5 mr-1">
+                                            <path
+                                                d="M9.25 13.25a.75.75 0 0 0 1.5 0V4.636l2.955 3.129a.75.75 0 0 0 1.09-1.03l-4.25-4.5a.75.75 0 0 0-1.09 0l-4.25 4.5a.75.75 0 1 0 1.09 1.03L9.25 4.636v8.614Z" />
+                                            <path
+                                                d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
+                                        </svg>
+                                        Load
+                                    </button>
+                                </div>
+                            </div>
+
+
+                            <!-- Generation Parameters -->
+                            <div class="mb-6">
+                                <details class="group">
+                                    <summary class="list-none flex cursor-pointer items-center">
+                                        <span class="text-sm font-medium label-base">Generation Parameters</span>
+                                        <span class="ml-2 text-purple-500 dark:text-purple-300">
+                                            <svg class="group-open:rotate-180 h-5 w-5 transition-transform"
+                                                viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd"
+                                                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                        </span>
+                                    </summary>
+                                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                                        <!-- Use default_gen_params passed from server for initial values -->
+                                        {% set current_gen_params = submitted_gen_params if submitted_gen_params else
+                                        default_gen_params %}
+                                        <!-- Speed Factor -->
+                                        <div>
+                                            <label for="speed_factor" class="label-base">Speed Factor (<span
+                                                    id="speed_factor_value">{{ current_gen_params.speed_factor
+                                                    }}</span>)</label>
+                                            <input type="range" id="speed_factor" name="speed_factor" min="0.5"
+                                                max="2.0" step="0.01" value="{{ current_gen_params.speed_factor }}"
+                                                class="slider-base">
+                                        </div>
+                                        <!-- CFG Scale -->
+                                        <div>
+                                            <label for="cfg_scale" class="label-base">CFG Scale (<span
+                                                    id="cfg_scale_value">{{ current_gen_params.cfg_scale
+                                                    }}</span>)</label>
+                                            <input type="range" id="cfg_scale" name="cfg_scale" min="1.0" max="5.0"
+                                                step="0.1" value="{{ current_gen_params.cfg_scale }}"
+                                                class="slider-base">
+                                        </div>
+                                        <!-- Temperature -->
+                                        <div>
+                                            <label for="temperature" class="label-base">Temperature (<span
+                                                    id="temperature_value">{{ current_gen_params.temperature
+                                                    }}</span>)</label>
+                                            <input type="range" id="temperature" name="temperature" min="1.0" max="1.5"
+                                                step="0.05" value="{{ current_gen_params.temperature }}"
+                                                class="slider-base">
+                                        </div>
+                                        <!-- Top P -->
+                                        <div>
+                                            <label for="top_p" class="label-base">Top P (<span id="top_p_value">{{
+                                                    current_gen_params.top_p }}</span>)</label>
+                                            <input type="range" id="top_p" name="top_p" min="0.8" max="1.0" step="0.01"
+                                                value="{{ current_gen_params.top_p }}" class="slider-base">
+                                        </div>
+                                        <!-- CFG Filter Top K -->
+                                        <div>
+                                            <label for="cfg_filter_top_k" class="label-base">CFG Filter Top K (<span
+                                                    id="cfg_filter_top_k_value">{{ current_gen_params.cfg_filter_top_k
+                                                    }}</span>)</label>
+                                            <input type="range" id="cfg_filter_top_k" name="cfg_filter_top_k" min="15"
+                                                max="50" step="1" value="{{ current_gen_params.cfg_filter_top_k }}"
+                                                class="slider-base">
+                                        </div>
+                                        <!-- Save Gen Defaults Button -->
+                                        <div class="col-span-1 md:col-span-2 mt-4 flex items-center gap-4">
+                                            <button id="save-gen-defaults-btn" type="button" class="btn-secondary">
+                                                Save Generation Defaults
+                                            </button>
+                                            <span id="gen-defaults-status" class="text-xs hidden"></span>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+
+                            <!-- Server Configuration (Collapsible) -->
+                            <div class="mb-6">
+                                <details class="group">
+                                    <summary class="list-none flex cursor-pointer items-center">
+                                        <span class="text-sm font-medium label-base">Server Configuration</span>
+                                        <span class="ml-2 text-purple-500 dark:text-purple-300">
+                                            <svg class="group-open:rotate-180 h-5 w-5 transition-transform"
+                                                viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd"
+                                                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                        </span>
+                                    </summary>
+                                    <div id="server-config-form"
+                                        class="mt-4 border-t border-gray-200 dark:border-dark-700 pt-4">
+                                        <p class="text-xs text-purple-500 dark:text-purple-300 mb-3">
+                                            These settings are saved to the <code class="code-inline">.env</code> file.
+                                            Restart the server to apply changes.
+                                        </p>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <!-- Dia Model Repo ID -->
+                                            <div>
+                                                <label for="config_model_repo" class="label-base text-xs">Model Repo
+                                                    ID</label>
+                                                <input type="text" id="config_model_repo" name="DIA_MODEL_REPO_ID"
+                                                    value="{{ config.DIA_MODEL_REPO_ID }}"
+                                                    placeholder="ttj/dia-1.6b-safetensors" class="input-base text-sm">
+                                            </div>
+                                            <!-- Model Config Filename -->
+                                            <div>
+                                                <label for="config_model_config" class="label-base text-xs">Model Config
+                                                    Filename</label>
+                                                <input type="text" id="config_model_config"
+                                                    name="DIA_MODEL_CONFIG_FILENAME"
+                                                    value="{{ config.DIA_MODEL_CONFIG_FILENAME }}"
+                                                    placeholder="config.json" class="input-base text-sm">
+                                            </div>
+                                            <!-- Model Weights Filename -->
+                                            <div>
+                                                <label for="config_model_weights" class="label-base text-xs">Model
+                                                    Weights Filename</label>
+                                                <input type="text" id="config_model_weights"
+                                                    name="DIA_MODEL_WEIGHTS_FILENAME"
+                                                    value="{{ config.DIA_MODEL_WEIGHTS_FILENAME }}"
+                                                    placeholder="dia-v0_1_bf16.safetensors" class="input-base text-sm">
+                                            </div>
+                                            <!-- Model Cache Path -->
+                                            <div>
+                                                <label for="config_model_cache" class="label-base text-xs">Model Cache
+                                                    Path</label>
+                                                <input type="text" id="config_model_cache" name="DIA_MODEL_CACHE_PATH"
+                                                    value="{{ config.DIA_MODEL_CACHE_PATH }}"
+                                                    placeholder="./model_cache" class="input-base text-sm">
+                                            </div>
+                                            <!-- Reference Audio Path -->
+                                            <div>
+                                                <label for="config_ref_audio" class="label-base text-xs">Reference Audio
+                                                    Path</label>
+                                                <input type="text" id="config_ref_audio" name="REFERENCE_AUDIO_PATH"
+                                                    value="{{ config.REFERENCE_AUDIO_PATH }}"
+                                                    placeholder="./reference_audio" class="input-base text-sm">
+                                            </div>
+                                            <!-- Output Path -->
+                                            <div>
+                                                <label for="config_output_path" class="label-base text-xs">Output
+                                                    Path</label>
+                                                <input type="text" id="config_output_path" name="OUTPUT_PATH"
+                                                    value="{{ config.OUTPUT_PATH }}" placeholder="./outputs"
+                                                    class="input-base text-sm">
+                                            </div>
+                                            <!-- Server Host -->
+                                            <div>
+                                                <label for="config_host" class="label-base text-xs">Server Host</label>
+                                                <input type="text" id="config_host" name="HOST"
+                                                    value="{{ config.HOST }}" placeholder="0.0.0.0"
+                                                    class="input-base text-sm">
+                                            </div>
+                                            <!-- Server Port -->
+                                            <div>
+                                                <label for="config_port" class="label-base text-xs">Server Port</label>
+                                                <input type="number" id="config_port" name="PORT"
+                                                    value="{{ config.PORT }}" min="1024" max="65535" step="1"
+                                                    class="input-base text-sm">
+                                            </div>
+                                            <!-- Save/Restart Buttons -->
+                                            <div
+                                                class="col-span-1 md:col-span-2 mt-4 flex flex-col md:flex-row gap-4 items-center">
+                                                <button id="save-config-btn" type="button"
+                                                    class="btn-purple w-full md:w-auto">
+                                                    Save Server Configuration
+                                                </button>
+                                                <button id="restart-server-btn" type="button"
+                                                    class="btn-danger w-full md:w-auto hidden">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                                                        viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                                                        class="w-5 h-5 mr-1 inline-block">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                                    </svg>
+                                                    Restart Server
+                                                </button>
+                                                <span id="config-status" class="text-xs ml-2 hidden"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+
+                        </div> <!-- End p-6 -->
+
+                        <!-- Form Actions -->
+                        <div class="card-footer">
+                            <div class="text-sm text-gray-600 dark:text-purple-300">
+                                <p>Use <code class="code-inline">[S1]</code>/<code class="code-inline">[S2]</code> for
+                                    dialogue. Add <code class="code-inline">(laughs)</code> etc.</p>
+                            </div>
+                            <button type="submit" id="generate-btn" class="btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                    stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1 inline-block">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+                                </svg>
+                                Generate Speech
+                            </button>
+                        </div>
+                    </form>
+                </div> <!-- End TTS Form Card -->
+
+                <!-- Audio player container - Populated by JavaScript if generation is successful -->
+                <div id="audio-player-container" class="mt-8">
+                    {% if output_file_url %}
+                    <!-- Template for initial load if result is passed from server -->
+                    <!-- Add data attribute to signal JS that result is present -->
+                    <div id="output-file-url-data" data-initial-audio-url="{{ output_file_url }}" class="hidden"></div>
+                    <div class="audio-player-card">
+                        <div class="p-6">
+                            <h2 class="card-header">Generated Audio</h2>
+                            <div class="mb-4">
+                                <div id="waveform" class="waveform-container"></div>
+                            </div>
+                            <div class="audio-player-controls">
+                                <div class="audio-player-buttons">
+                                    <button id="play-btn" class="btn-primary" disabled>
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                            class="w-5 h-5 mr-1">
+                                            <path fill-rule="evenodd"
+                                                d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm6.39-2.908a.75.75 0 0 1 .766.027l3.5 2.25a.75.75 0 0 1 0 1.262l-3.5 2.25A.75.75 0 0 1 8 12.25v-4.5a.75.75 0 0 1 .39-.658Z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                        Play
+                                    </button>
+                                    <a id="download-link" href="{{ output_file_url }}"
+                                        download="{{ output_file_url.split('/')[-1] }}" class="btn-secondary">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                            class="w-5 h-5 mr-1">
+                                            <path
+                                                d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z" />
+                                            <path
+                                                d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
+                                        </svg>
+                                        Download WAV
+                                    </a>
+                                </div>
+                                <div class="audio-player-info">
+                                    Mode: <span class="font-medium">{{ submitted_voice_mode }}</span>
+                                    {% if submitted_voice_mode == 'clone' and submitted_clone_file %}
+                                    (<span class="font-medium">{{ submitted_clone_file }}</span>)
+                                    {% endif %}
+                                    • Gen Time: <span class="font-medium">{{ generation_time }}s</span>
+                                    • Duration: <span id="audio-duration" class="font-medium">--:--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Tips Section -->
+                <div class="mt-8">
+                    <h2 class="card-header mb-4">Tips & Tricks for Dia</h2>
+                    <div class="card-base">
+                        <div class="p-6">
+                            <ul class="list-disc pl-5 text-sm text-gray-700 dark:text-purple-300 space-y-2">
+                                <li>For **Dialogue** mode, clearly mark speaker turns using <code
+                                        class="code-inline">[S1]</code> and <code class="code-inline">[S2]</code>.</li>
+                                <li>Add non-verbal sounds like <code class="code-inline">(laughs)</code>, <code
+                                        class="code-inline">(sighs)</code>, <code
+                                        class="code-inline">(clears throat)</code> within the text where desired.</li>
+                                <li>For **Voice Clone** mode, upload a clean reference audio file (<code
+                                        class="code-inline">.wav</code>/<code class="code-inline">.mp3</code>) using the
+                                    "Load" button. <strong class="dark:text-yellow-300 text-yellow-600">Crucially,
+                                        include the exact transcript of the reference audio at the beginning of your
+                                        text input</strong> (e.g., <code
+                                        class="code-inline">[S1] Reference transcript. [S1] Target text...</code>).</li>
+                                <li>Experiment with **CFG Scale** (higher = more adherence to text, potentially less
+                                    natural) and **Temperature** (higher = more random/varied).</li>
+                                <li>The **Speed Factor** adjusts playback speed (0.8 = slower, 1.0 = original).</li>
+                                <li>Use the <code class="code-inline">/v1/audio/speech</code> endpoint for OpenAI
+                                    compatibility. Use the <code class="code-inline">voice</code> parameter to specify
+                                    mode ('S1', 'S2', 'dialogue', 'reference_file.wav').</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="nav-base py-6 mt-12">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-center">
+                    <a href="https://github.com/devnen/Dia-TTS-Server"
+                        class="flex items-center gap-2 text-gray-600 dark:text-purple-300 text-sm hover:text-sky-600 dark:hover:text-primary-400 transition-colors">
+                        <!-- GitHub icon -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
+                            viewBox="0 0 16 16" class="flex-shrink-0">
+                            <path
+                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+                        </svg>
+                        <span>Dia TTS Server | Powered by FastAPI</span>
+                    </a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading spinner template (hidden by default) -->
+    <div id="loading-overlay" class="loading-overlay-base hidden">
+        <div class="loading-box-base">
+            <svg class="loading-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+            <p id="loading-message" class="loading-text">Generating audio...</p>
+            <p id="loading-status" class="loading-status">Please wait.</p>
+            <button id="loading-cancel-btn" type="button" class="btn-secondary mt-4">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Pass data from server to JavaScript -->
+    <script>
+        // Make presets data available to script.js
+        // Ensure this is correctly populated by your Jinja2 template context
+        window.appPresets = {{ presets | tojson | safe }};
+    </script>
+
+    <!-- Link External JavaScript (Ensure it's loaded AFTER the DOM) -->
+    <script src="/ui/script.js" defer></script>
+</body>
+
+</html>
