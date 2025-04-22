@@ -254,10 +254,6 @@ The most intuitive way to use the server:
 *   **UI Issues:** Clear browser cache, check developer console (F12) for JS errors.
 *   **Generation Cancel Button:** This is a "UI Cancel" - it stops the *frontend* from waiting/processing but doesn't instantly halt the backend model inference. Clicking Generate again cancels the previous UI wait.
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to open an issue to report bugs or suggest features, or submit a Pull Request for improvements.
-
 ## 📜 License
 
 This project is licensed under the **MIT License**.
