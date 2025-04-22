@@ -1,4 +1,4 @@
-# Dia TTS Server: Realistic Dialogue & Voice Cloning with an OpenAI-Compatible API 🗣️
+# Dia TTS Server: OpenAI-Compatible API with Web UI
 
 **Self-host the powerful [Nari Labs Dia TTS model](https://github.com/nari-labs/dia) with this enhanced FastAPI server! Features an intuitive Web UI, flexible API endpoints (including OpenAI-compatible `/v1/audio/speech`), support for realistic dialogue generation (`[S1]`/`[S2]`) and voice cloning.**
 
@@ -12,7 +12,7 @@ Defaults to efficient BF16 SafeTensors for reduced VRAM and faster inference, wi
 
 ---
 
-## ✨ Overview: Enhanced Dia TTS Access
+## 🗣️ Overview: Enhanced Dia TTS Access
 
 The original [Dia model by Nari Labs](https://github.com/nari-labs/dia) provides incredible capabilities for generating realistic dialogue, complete with speaker turns and non-verbal sounds like `(laughs)` or `(sighs)`. This project builds upon that foundation by providing a robust **[FastAPI](https://fastapi.tiangolo.com/) server** that makes Dia significantly easier to use and integrate.
 
