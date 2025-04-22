@@ -164,8 +164,6 @@ An example configuration file is provided as `env.example.txt`. To create your l
 
 **Choose ONE of the following commands based on your operating system:**
 
----
-
 **On Linux or macOS (using bash, zsh, etc.):**
 
 *   To **rename** the file (the example file will be gone):
@@ -178,8 +176,6 @@ An example configuration file is provided as `env.example.txt`. To create your l
     cp env.example.txt .env
     ```
 
----
-
 **On Windows (using Command Prompt - `cmd.exe`):**
 
 *   To **rename** the file:
@@ -191,8 +187,6 @@ An example configuration file is provided as `env.example.txt`. To create your l
     ```cmd
     copy env.example.txt .env
     ```
-
----
 
 **Default Configuration (from `.env`):**
 
