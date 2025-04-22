@@ -1,6 +1,7 @@
 # server.py
 # Main FastAPI server for Dia TTS
 
+import sys
 import logging
 import time
 import os
@@ -58,11 +59,11 @@ from config import (
     DEFAULT_CONFIG,
 )
 from models import OpenAITTSRequest, CustomTTSRequest, ErrorResponse
+import engine
 from engine import (
     load_model as load_dia_model,
     generate_speech,
     EXPECTED_SAMPLE_RATE,
-    MODEL_LOADED,
 )
 from utils import encode_audio, save_audio_to_file, PerformanceMonitor
 
@@ -78,6 +79,7 @@ logger = logging.getLogger(__name__)  # Logger for this module
 # --- Global Variables & Constants ---
 PRESETS_FILE = "ui/presets.yaml"
 loaded_presets: List[Dict[str, Any]] = []  # Cache presets in memory
+startup_complete_event = threading.Event()
 
 # --- Helper Functions ---
 
@@ -157,33 +159,88 @@ def sanitize_filename(filename: str) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown."""
-    logger.info("Starting Dia TTS server initialization...")
-    # Ensure base directories exist
-    os.makedirs(get_output_path(), exist_ok=True)
-    os.makedirs(get_reference_audio_path(), exist_ok=True)
-    os.makedirs(get_model_cache_path(), exist_ok=True)
-    os.makedirs("ui", exist_ok=True)  # Ensure UI directory exists
-    os.makedirs("static", exist_ok=True)  # For favicon etc.
+    model_loaded_successfully = False  # Flag to track success
+    try:
+        logger.info("Starting Dia TTS server initialization...")
+        # Ensure base directories exist
+        os.makedirs(get_output_path(), exist_ok=True)
+        os.makedirs(get_reference_audio_path(), exist_ok=True)
+        os.makedirs(get_model_cache_path(), exist_ok=True)
+        os.makedirs("ui", exist_ok=True)
+        os.makedirs("static", exist_ok=True)
 
-    # Load presets from YAML file
-    load_presets()
+        # Load presets from YAML file
+        load_presets()
 
-    # Load the main TTS model during startup
-    if not load_dia_model():
-        logger.critical(
-            "Failed to load Dia model on startup. Server might not function correctly."
-        )
-        # Depending on desired behavior, could raise an exception here to stop startup
-        # raise RuntimeError("Failed to load Dia model.")
-    else:
-        logger.info("Dia model loaded successfully.")
+        # Load the main TTS model during startup
+        if not load_dia_model():
+            # Model loading failed
+            error_msg = (
+                "CRITICAL: Failed to load Dia model on startup. Server cannot start."
+            )
+            logger.critical(error_msg)
+            # Option 1: Raise an exception to stop Uvicorn startup cleanly
+            raise RuntimeError(error_msg)
+            # Option 2: Force exit (less clean, might bypass some Uvicorn shutdown)
+            # sys.exit(1)
+        else:
+            logger.info("Dia model loaded successfully.")
+            model_loaded_successfully = True
 
-    yield  # Application runs here
+            # Create and start a delayed browser opening thread
+            # IMPORTANT: Create this thread AFTER model loading completes
+            host = get_host()
+            port = get_port()
+            browser_thread = threading.Thread(
+                target=lambda: _delayed_browser_open(host, port), daemon=True
+            )
+            browser_thread.start()
 
-    # Cleanup on shutdown
-    logger.info("Application shutdown initiated...")
-    # Add any specific cleanup needed for Dia model if required (e.g., release GPU memory explicitly if needed)
-    logger.info("Application shutdown complete.")
+        # --- Signal completion AFTER potentially long operations ---
+        logger.info("Application startup sequence finished. Signaling readiness.")
+        startup_complete_event.set()
+
+        yield  # Application runs here
+
+    except Exception as e:
+        # Catch the RuntimeError we raised or any other startup error
+        logger.error(f"Fatal error during application startup: {e}", exc_info=True)
+        # Do NOT set the event here if startup failed
+        # Re-raise the exception or exit to ensure the server stops
+        raise e  # Re-raising ensures Uvicorn knows startup failed
+        # Alternatively: sys.exit(1)
+    finally:
+        # Cleanup on shutdown
+        logger.info("Application shutdown initiated...")
+        # Add any specific cleanup needed
+        logger.info("Application shutdown complete.")
+
+
+def _delayed_browser_open(host, port):
+    """Opens browser after a short delay to ensure server is ready"""
+    try:
+        # Small delay to ensure Uvicorn is fully ready
+        time.sleep(2)
+
+        display_host = "localhost" if host == "0.0.0.0" else host
+        browser_url = f"http://{display_host}:{port}/"
+
+        # Log to file for debugging
+        with open("browser_thread_debug.log", "a") as f:
+            f.write(f"[{time.time()}] Opening browser at {browser_url}\n")
+
+        # Try to use logger as well (might work at this point)
+        try:
+            logger.info(f"Opening browser at {browser_url}")
+        except:
+            pass
+
+        # Open browser directly without health checks
+        webbrowser.open(browser_url)
+
+    except Exception as e:
+        with open("browser_thread_debug.log", "a") as f:
+            f.write(f"[{time.time()}] Browser open error: {str(e)}\n")
 
 
 # --- FastAPI App Initialization ---
@@ -934,23 +991,13 @@ async def upload_reference_audio(files: List[UploadFile] = File(...)):
 @app.get("/health", tags=["Server Status"], summary="Check server health")
 async def health_check():
     """Basic health check, indicates if the server is running and if the model is loaded."""
-    # MODEL_LOADED is updated by the engine's load_model function
-    return {"status": "healthy", "model_loaded": MODEL_LOADED}
-
-
-# --- Function to Open Browser ---
-def open_browser(host: str, port: int):
-    """Waits a moment and then opens the browser to the server URL."""
-    # Wait a couple of seconds for the server to likely be ready
-    time.sleep(2)
-    # Use 'localhost' if host is '0.0.0.0' for browser access
-    display_host = "localhost" if host == "0.0.0.0" else host
-    url = f"http://{display_host}:{port}/"
-    logger.info(f"Attempting to open browser at: {url}")
-    try:
-        webbrowser.open(url)
-    except Exception as e:
-        logger.error(f"Failed to open browser: {e}")
+    # Access the MODEL_LOADED variable *directly* from the engine module
+    # each time the endpoint is called to get the current status.
+    current_model_status = getattr(engine, "MODEL_LOADED", False)  # Safely get status
+    logger.debug(
+        f"Health check returning model_loaded status: {current_model_status}"
+    )  # Add debug log
+    return {"status": "healthy", "model_loaded": current_model_status}
 
 
 # --- Main Execution ---
@@ -988,12 +1035,13 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.error(f"Failed to create dummy {index_file}: {e}")
 
-    # --- Launch browser ---
-    # Start browser opening in a background thread using the determined host and port
-    thread = threading.Thread(target=open_browser, args=(host, port), daemon=True)
-    thread.start()
+    # --- Create synchronization event ---
+    # This event will be set by the lifespan manager once startup (incl. model loading) is complete.
+    startup_complete_event = threading.Event()
 
     # Run Uvicorn server
+    # The lifespan context manager ('lifespan="on"') will run during startup.
+    # The 'lifespan' function is responsible for loading models and setting the 'startup_complete_event'.
     uvicorn.run(
         "server:app",  # Use the format 'module:app_instance'
         host=host,
@@ -1008,6 +1056,6 @@ if __name__ == "__main__":
         #     ".env",
         #     "*.yaml",
         # ],
-        lifespan="on",  # Use the lifespan context manager
-        # workers=1 # Keep workers=1 when using reload=True
+        lifespan="on",  # Use the lifespan context manager defined in this file
+        # workers=1 # Keep workers=1 when using reload=True or complex global state/models
     )
