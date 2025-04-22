@@ -1,6 +1,6 @@
 # Dia TTS Server - Technical Documentation
 
-**Version:** 1.1.0
+**Version:** 1.0.0
 **Date:** 2025-04-22
 
 **Table of Contents:**
@@ -68,7 +68,7 @@ This server is built using the FastAPI framework and offers both a RESTful API (
 ### 2.1 Directory Structure
 
 ```
-dia-tts/
+dia-tts-server/
 │
 ├── .env                  # Local configuration overrides (user-created)
 ├── config.py             # Default configuration and management class
@@ -178,7 +178,7 @@ Using a virtual environment is strongly recommended to isolate project dependenc
 
 #### 4.2.1 Windows Setup
 
-1.  **Open PowerShell or Command Prompt** in the project directory (`dia-tts`).
+1.  **Open PowerShell or Command Prompt** in the project directory (`dia-tts-server`).
 2.  **Create the virtual environment:**
     ```powershell
     python -m venv venv
@@ -196,7 +196,7 @@ Using a virtual environment is strongly recommended to isolate project dependenc
     sudo apt update
     sudo apt install python3 python3-venv python3-pip libsndfile1 -y
     ```
-2.  **Open your terminal** in the project directory (`dia-tts`).
+2.  **Open your terminal** in the project directory (`dia-tts-server`).
 3.  **Create the virtual environment:**
     ```bash
     python3 -m venv venv
@@ -293,7 +293,7 @@ The server's behavior, including model selection, paths, and default generation 
 ### 5.1 Configuration Files (`.env` and `config.py`)
 
 *   **`config.py`:** Defines the *default* values for all configuration parameters in the `DEFAULT_CONFIG` dictionary. It also contains the `ConfigManager` class and getter functions used by the application.
-*   **`.env` File:** This file, located in the project root directory (`dia-tts/.env`), allows you to *override* the default values. Create this file if it doesn't exist. Settings are defined as `KEY=VALUE` pairs, one per line. The server reads this file on startup using `python-dotenv`.
+*   **`.env` File:** This file, located in the project root directory (`dia-tts-server/.env`), allows you to *override* the default values. Create this file if it doesn't exist. Settings are defined as `KEY=VALUE` pairs, one per line. The server reads this file on startup using `python-dotenv`.
 
 **Priority:** Values set in the `.env` file take precedence over the defaults in `config.py`. Environment variables set directly in your system also override `.env` file values (though using `.env` is generally recommended for project-specific settings).
 
@@ -356,7 +356,7 @@ DIA_MODEL_WEIGHTS_FILENAME=dia-v0_1.pth
 1.  **Activate Virtual Environment:** Ensure your virtual environment is activated (`(venv)` prefix).
     *   Windows: `.\venv\Scripts\activate`
     *   Linux: `source venv/bin/activate`
-2.  **Navigate to Project Root:** Make sure your terminal is in the `dia-tts` directory.
+2.  **Navigate to Project Root:** Make sure your terminal is in the `dia-tts-server` directory.
 3.  **Run the Server:**
     ```bash
     python server.py
