@@ -293,6 +293,34 @@ The most intuitive way to use the server:
 *   **UI Issues:** Clear browser cache, check developer console (F12) for JS errors.
 *   **Generation Cancel Button:** This is a "UI Cancel" - it stops the *frontend* from waiting/processing but doesn't instantly halt the backend model inference. Clicking Generate again cancels the previous UI wait.
 
+### CUDA Out of Memory (OOM) During Startup
+
+You might see a `CUDA out of memory` error when starting the server, even with sufficient VRAM. This often happens because loading model weights requires temporary GPU memory overhead.
+
+*   **Mitigation:** The server now loads weights to CPU RAM first before moving the model to the GPU, reducing VRAM spikes during startup.
+*   **If OOM Persists:**
+    1.  Check GPU VRAM usage (`nvidia-smi`) – ensure other processes aren't consuming memory.
+    2.  Use the smaller BF16 model (`dia-v0_1_bf16.safetensors` in `.env`).
+    3.  (Advanced) Try setting `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` as an environment variable before running the server.
+
+### Selecting GPUs on Multi-GPU Systems
+
+To use specific NVIDIA GPUs, set the `CUDA_VISIBLE_DEVICES` environment variable **before** running `python server.py`. This tells PyTorch which physical GPUs to use, re-indexing them starting from 0. The server code uses the first visible GPU (`cuda:0`).
+
+*   **Example (Use only physical GPU 1):**
+    *   Linux/macOS: `CUDA_VISIBLE_DEVICES="1" python server.py`
+    *   Windows CMD: `set CUDA_VISIBLE_DEVICES=1 && python server.py`
+    *   Windows PowerShell: `$env:CUDA_VISIBLE_DEVICES="1"; python server.py`
+    *   *(This GPU becomes `cuda:0` inside PyTorch)*
+
+*   **Example (Use physical GPUs 6 and 7 - server uses GPU 6):**
+    *   Linux/macOS: `CUDA_VISIBLE_DEVICES="6,7" python server.py`
+    *   Windows CMD: `set CUDA_VISIBLE_DEVICES=6,7 && python server.py`
+    *   Windows PowerShell: `$env:CUDA_VISIBLE_DEVICES="6,7"; python server.py`
+    *   *(GPU 6 becomes `cuda:0`, GPU 7 becomes `cuda:1`)*
+
+**Note:** `CUDA_VISIBLE_DEVICES` selects GPUs; it does **not** fix OOM errors if the chosen GPU lacks sufficient memory.
+
 ## 📜 License
 
 This project is licensed under the **MIT License**.
