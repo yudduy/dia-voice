@@ -158,7 +158,41 @@ Skip this step if you only have a CPU.
 
 ## ⚙️ Configuration
 
-Configure the server using a `.env` file in the project root (`dia-tts-server/.env`). Create this file if it doesn't exist. Values here override defaults from `config.py`.
+Configure the server using a `.env` file in the project root (`dia-tts-server/.env`). Create this file if it doesn't exist or you can simply rename the provided `env.example.txt` file to `.env`. Values here override defaults from `config.py`.
+
+An example configuration file is provided as `env.example.txt`. To create your local configuration file, you need to rename or copy this example file to `.env`.
+
+**Choose ONE of the following commands based on your operating system:**
+
+---
+
+**On Linux or macOS (using bash, zsh, etc.):**
+
+*   To **rename** the file (the example file will be gone):
+    ```bash
+    mv env.example.txt .env
+    ```
+
+*   Or, to **copy** the file (keeping the original example):
+    ```bash
+    cp env.example.txt .env
+    ```
+
+---
+
+**On Windows (using Command Prompt - `cmd.exe`):**
+
+*   To **rename** the file:
+    ```cmd
+    ren env.example.txt .env
+    ```
+
+*   Or, to **copy** the file:
+    ```cmd
+    copy env.example.txt .env
+    ```
+    
+---
 
 **Current Default Configuration (from your `.env`):**
 
