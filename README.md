@@ -160,7 +160,7 @@ Skip this step if you only have a CPU.
 
 Configure the server using a `.env` file in the project root (`dia-tts-server/.env`). Create this file if it doesn't exist or you can simply rename the provided `env.example.txt` file to `.env`. Values here override defaults from `config.py`.
 
-An example configuration file is provided as `env.example.txt`. To create your local configuration file, you need to rename or copy this example file to `.env`.
+An example configuration file is provided as `env.example.txt`. To create your local configuration file, you can rename or copy this example file to `.env`.
 
 **Choose ONE of the following commands based on your operating system:**
 
