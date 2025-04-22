@@ -169,7 +169,7 @@ Open your terminal or command prompt and navigate to the directory where you wan
 
 ```bash
 git clone https://github.com/devnen/dia-tts-server.git # Replace with the actual repo URL if different
-cd dia-tts
+cd dia-tts-server
 ```
 
 ### 4.2 Setting up Python Virtual Environment
