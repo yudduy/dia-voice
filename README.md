@@ -191,10 +191,10 @@ An example configuration file is provided as `env.example.txt`. To create your l
     ```cmd
     copy env.example.txt .env
     ```
-    
+
 ---
 
-**Current Default Configuration (from your `.env`):**
+**Default Configuration (from `.env`):**
 
 The server will currently use the following settings based on your provided `.env` file (or defaults if a key is missing):
 
@@ -203,10 +203,10 @@ The server will currently use the following settings based on your provided `.en
 *   **Port:** `8003`
 *   **Paths:** `./model_cache`, `./reference_audio`, `./outputs`
 
-**Example `.env` File Content (Reflecting your current setup):**
+**Example `.env` File Content:**
 
 ```dotenv
-# .env - Current Active Configuration
+# .env - Default Configuration
 
 # --- Server Settings ---
 HOST=0.0.0.0
