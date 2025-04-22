@@ -8,11 +8,10 @@ Defaults to efficient BF16 SafeTensors for reduced VRAM and faster inference, wi
 [![Python Version](https://img.shields.io/badge/Python-3.10+-blue.svg?style=for-the-badge)](https://www.python.org/downloads/)
 [![Framework](https://img.shields.io/badge/Framework-FastAPI-green.svg?style=for-the-badge)](https://fastapi.tiangolo.com/)
 [![Model Format](https://img.shields.io/badge/Weights-SafeTensors%20/%20pth-orange.svg?style=for-the-badge)](https://github.com/huggingface/safetensors)
-<!-- Add other relevant badges if applicable -->
 
 <div align="center">
-  <img src="screenshot-dark.png" alt="Dia TTS Server Web UI - Dark Mode" width="49%" />
-  <img src="screenshot-light.png" alt="Dia TTS Server Web UI - Light Mode" width="49%" />
+  <img src="screenshot-d.png" alt="Dia TTS Server Web UI - Dark Mode" width="49%" />
+  <img src="screenshot-l.png" alt="Dia TTS Server Web UI - Light Mode" width="49%" />
 </div>
 
 ---
