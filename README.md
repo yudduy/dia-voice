@@ -239,16 +239,27 @@ OUTPUT_PATH=./outputs
 
 ⭐ **Remember:** You **must restart the server** (`python server.py`) after changing the `.env` file! See `config.py` for all available options and their internal defaults.
 
+
 ## ▶️ Running the Server
 
-1.  Activate the virtual environment: `source venv/bin/activate` (Linux) or `.\venv\Scripts\activate` (Windows).
-2.  Run the server:
+**Note on Model Downloads:**
+The first time you run the server, it needs to download the configured model weights and associated files (like the DAC model). This will also happen if you change the `DIA_MODEL_REPO_ID` or `DIA_MODEL_WEIGHTS_FILENAME` in your `.env` file to point to a model not already present in your cache (`./model_cache` by default).
+
+*   The download size depends on the selected model (e.g., `dia-v0_1_bf16.safetensors` is ~3.2GB, `dia-v0_1.safetensors` or `.pth` are ~6.4GB).
+*   This process can take **several minutes** depending on your internet speed.
+*   Please **monitor the terminal logs** where you run `python server.py` – you will see download progress bars. The server will finish starting up *after* the downloads are complete.
+
+1.  **Activate the virtual environment (if not activated):**
+    *   Linux/macOS: `source venv/bin/activate`
+    *   Windows: `.\venv\Scripts\activate`
+2.  **Run the server:**
     ```bash
     python server.py
     ```
-3.  Access the UI: Open `http://localhost:PORT` (e.g., `http://localhost:8003`) in your browser.
-4.  Access API Docs: Open `http://localhost:PORT/docs`.
-5.  Stop the server: Press `CTRL+C` in the terminal.
+3.  **Access the UI:** Once the server finishes starting (including any necessary downloads), open `http://localhost:PORT` (e.g., `http://localhost:8003` based on your default config) in your web browser.
+4.  **Access API Docs:** Open `http://localhost:PORT/docs` in your web browser.
+5.  **Stop the server:** Press `CTRL+C` in the terminal where the server is running.
+
 
 ## 💡 Usage
 
