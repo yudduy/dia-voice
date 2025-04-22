@@ -77,7 +77,7 @@ Follow these steps carefully to get the server running.
 **1. Clone the Repository**
 ```bash
 git clone https://github.com/devnen/dia-tts-server.git
-cd dia-tts
+cd dia-tts-server
 ```
 
 **2. Set up Python Virtual Environment**
