@@ -12,6 +12,9 @@ import yaml  # For loading presets
 from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import Optional, Literal, List, Dict, Any
+import webbrowser
+import threading
+import time
 
 from fastapi import (
     FastAPI,
@@ -192,19 +195,13 @@ app = FastAPI(
 )
 
 # List of folders to check/create
-folders = [
-    "reference_audio",
-    "model_cache",
-    "outputs"
-]
+folders = ["reference_audio", "model_cache", "outputs"]
 
 # Check each folder and create if it doesn't exist
 for folder in folders:
     if not os.path.exists(folder):
         os.makedirs(folder)
         print(f"Created directory: {folder}")
-    else:
-        print(f"Directory already exists: {folder}")
 
 # --- Static Files and Templates ---
 # Serve generated audio files from the configured output path
@@ -941,6 +938,21 @@ async def health_check():
     return {"status": "healthy", "model_loaded": MODEL_LOADED}
 
 
+# --- Function to Open Browser ---
+def open_browser(host: str, port: int):
+    """Waits a moment and then opens the browser to the server URL."""
+    # Wait a couple of seconds for the server to likely be ready
+    time.sleep(2)
+    # Use 'localhost' if host is '0.0.0.0' for browser access
+    display_host = "localhost" if host == "0.0.0.0" else host
+    url = f"http://{display_host}:{port}/"
+    logger.info(f"Attempting to open browser at: {url}")
+    try:
+        webbrowser.open(url)
+    except Exception as e:
+        logger.error(f"Failed to open browser: {e}")
+
+
 # --- Main Execution ---
 if __name__ == "__main__":
     host = get_host()
@@ -952,12 +964,10 @@ if __name__ == "__main__":
     logger.info(f"Model Cache Path: {get_model_cache_path()}")
     logger.info(f"Reference Audio Path: {get_reference_audio_path()}")
     logger.info(f"Output Path: {get_output_path()}")
-    logger.info(
-        f"Web UI available at http://{host if host != '0.0.0.0' else 'localhost'}:{port}/"
-    )
-    logger.info(
-        f"API Docs available at http://{host if host != '0.0.0.0' else 'localhost'}:{port}/docs"
-    )
+    # Determine the host to display in logs and use for browser opening
+    display_host = "localhost" if host == "0.0.0.0" else host
+    logger.info(f"Web UI will be available at http://{display_host}:{port}/")
+    logger.info(f"API Docs available at http://{display_host}:{port}/docs")
 
     # Ensure UI directory and index.html exist for UI
     ui_dir = "ui"
@@ -978,21 +988,26 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.error(f"Failed to create dummy {index_file}: {e}")
 
+    # --- Launch browser ---
+    # Start browser opening in a background thread using the determined host and port
+    thread = threading.Thread(target=open_browser, args=(host, port), daemon=True)
+    thread.start()
+
     # Run Uvicorn server
     uvicorn.run(
         "server:app",  # Use the format 'module:app_instance'
         host=host,
         port=port,
-        reload=True,  # Enable auto-reload for development
-        reload_dirs=[".", "ui"],  # Watch project root and UI directory
-        reload_includes=[
-            "*.py",
-            "*.html",
-            "*.css",
-            "*.js",
-            ".env",
-            "*.yaml",
-        ],  # Watch relevant file types
+        reload=False,  # Set reload as needed for development/production
+        # reload_dirs=[".", "ui"], # Only use reload=True with reload_dirs/includes for development
+        # reload_includes=[
+        #     "*.py",
+        #     "*.html",
+        #     "*.css",
+        #     "*.js",
+        #     ".env",
+        #     "*.yaml",
+        # ],
         lifespan="on",  # Use the lifespan context manager
         # workers=1 # Keep workers=1 when using reload=True
     )
