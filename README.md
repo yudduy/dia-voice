@@ -78,7 +78,7 @@ Follow these steps carefully to get the server running.
 
 ```bash
 # Replace with the actual URL if you forked or host it elsewhere
-git clone https://github.com/your-username/dia-tts.git
+git clone https://github.com/devnen/dia-tts-server.git
 cd dia-tts```
 
 **2. Set up Python Virtual Environment**
