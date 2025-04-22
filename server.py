@@ -191,9 +191,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# List of folders to check/create
+folders = [
+    "reference_audio",
+    "model_cache",
+    "outputs"
+]
+
+# Check each folder and create if it doesn't exist
+for folder in folders:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+        print(f"Created directory: {folder}")
+    else:
+        print(f"Directory already exists: {folder}")
+
 # --- Static Files and Templates ---
-# Serve static assets (like favicon) from 'static' directory
-app.mount("/static", StaticFiles(directory="static"), name="static")
 # Serve generated audio files from the configured output path
 app.mount("/outputs", StaticFiles(directory=get_output_path()), name="outputs")
 # Serve UI files (CSS, JS) from the 'ui' directory
