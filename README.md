@@ -10,6 +10,8 @@ Defaults to efficient BF16 SafeTensors for reduced VRAM and faster inference, wi
 [![Model Format](https://img.shields.io/badge/Weights-SafeTensors%20/%20pth-orange.svg?style=for-the-badge)](https://github.com/huggingface/safetensors)
 <!-- Add other relevant badges if applicable -->
 
+![Dia TTS Server Web UI Screenshot](screenshot-d.png)
+
 ---
 
 ## 🗣️ Overview: Enhanced Dia TTS Access
@@ -86,7 +88,7 @@ Using a virtual environment is crucial!
 
 *   **Windows (PowerShell):**
     ```powershell
-    # In the dia-tts directory
+    # In the dia-tts-server directory
     python -m venv venv
     .\venv\Scripts\activate
     # Your prompt should now start with (venv)
@@ -97,7 +99,7 @@ Using a virtual environment is crucial!
     # Ensure prerequisites are installed
     sudo apt update && sudo apt install python3 python3-venv python3-pip libsndfile1 -y
 
-    # In the dia-tts directory
+    # In the dia-tts-server directory
     python3 -m venv venv
     source venv/bin/activate
     # Your prompt should now start with (venv)
@@ -154,7 +156,7 @@ Skip this step if you only have a CPU.
 
 ## ⚙️ Configuration
 
-Configure the server using a `.env` file in the project root (`dia-tts/.env`). Create this file if it doesn't exist. Values here override defaults from `config.py`.
+Configure the server using a `.env` file in the project root (`dia-tts-server/.env`). Create this file if it doesn't exist. Values here override defaults from `config.py`.
 
 **Current Default Configuration (from your `.env`):**
 
