@@ -10,8 +10,8 @@ Defaults to efficient BF16 SafeTensors for reduced VRAM and faster inference, wi
 [![Model Format](https://img.shields.io/badge/Weights-SafeTensors%20/%20pth-orange.svg?style=for-the-badge)](https://github.com/huggingface/safetensors)
 
 <div align="center">
-  <img src="screenshot-d.png" alt="Dia TTS Server Web UI - Dark Mode" width="49%" />
-  <img src="screenshot-l.png" alt="Dia TTS Server Web UI - Light Mode" width="49%" />
+  <img src="static/screenshot-d.png" alt="Dia TTS Server Web UI - Dark Mode" width="33%" />
+  <img src="static/screenshot-l.png" alt="Dia TTS Server Web UI - Light Mode" width="33%" />
 </div>
 
 ---
