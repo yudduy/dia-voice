@@ -240,6 +240,57 @@ OUTPUT_PATH=./outputs
 
 ⭐ **Remember:** You **must restart the server** (`python server.py`) after changing the `.env` file! See `config.py` for all available options and their internal defaults.
 
+## 🐳 Docker Installation
+ 
+ You can easily run Dia TTS Server using Docker, which handles all the dependencies and environment setup for you.
+ 
+ ### Prerequisites
+ 
+ - [Docker](https://docs.docker.com/get-docker/)
+ - [Docker Compose](https://docs.docker.com/compose/install/) (usually included with Docker Desktop)
+ - NVIDIA GPU with [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed (for GPU acceleration)
+ 
+ ### Quick Start with Docker
+ 
+ 1. **Clone the repository:**
+    ```bash
+    git clone https://github.com/devnen/dia-tts-server.git
+    cd dia-tts-server
+    ```
+ 
+ 2. **Configure environment variables:**
+    Edit the `.env` file with your desired settings. If it doesn't exist, create it:
+    ```bash
+    cp env.example.txt .env
+    ```
+ 
+ 3. **Build and start the container:**
+    ```bash
+    docker compose up -d
+    ```
+    The `-d` flag runs the container in detached mode (background).
+ 
+ 4. **Access the UI:**
+    Open `http://localhost:8003` in your web browser (or the port you specified in `.env`).
+ 
+ 5. **View logs:**
+    ```bash
+    docker compose logs -f
+    ```
+ 
+ 6. **Stop the container:**
+    ```bash
+    docker compose down
+    ```
+ 
+ ### Docker Volumes
+ 
+ The Docker setup creates three persistent volumes:
+ - `./model_cache:/app/model_cache` - Stores downloaded models
+ - `./reference_audio:/app/reference_audio` - Stores uploaded reference audio files
+ - `./outputs:/app/outputs` - Stores generated audio output
+ 
+ These volumes ensure your data persists across container restarts.
 
 ## ▶️ Running the Server
 
@@ -321,6 +372,10 @@ To use specific NVIDIA GPUs, set the `CUDA_VISIBLE_DEVICES` environment variable
     *   *(GPU 6 becomes `cuda:0`, GPU 7 becomes `cuda:1`)*
 
 **Note:** `CUDA_VISIBLE_DEVICES` selects GPUs; it does **not** fix OOM errors if the chosen GPU lacks sufficient memory.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to open an issue to report bugs or suggest features, or submit a Pull Request for improvements.
 
 ## 📜 License
 
