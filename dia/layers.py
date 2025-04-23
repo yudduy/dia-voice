@@ -209,8 +209,16 @@ class RotaryEmbedding(nn.Module):
 
 class KVCache:
     def __init__(self, num_heads, max_len, head_dim, device, k=None, v=None):
-        self.k = torch.zeros((2, num_heads, max_len, head_dim), device=device) if k is None else k
-        self.v = torch.zeros((2, num_heads, max_len, head_dim), device=device) if v is None else v
+        self.k = (
+            torch.zeros((2, num_heads, max_len, head_dim), device=device)
+            if k is None
+            else k
+        )
+        self.v = (
+            torch.zeros((2, num_heads, max_len, head_dim), device=device)
+            if v is None
+            else v
+        )
         self.current_idx = 0
         self.max_len = max_len
 
@@ -264,7 +272,9 @@ class Attention(nn.Module):
         self.output_dim = out_embed_dim if out_embed_dim is not None else q_embed_dim
         self.projected_query_dim = num_query_heads * head_dim
         if num_query_heads % num_kv_heads != 0:
-            raise ValueError(f"num_query_heads ({num_query_heads}) must be divisible by num_kv_heads ({num_kv_heads})")
+            raise ValueError(
+                f"num_query_heads ({num_query_heads}) must be divisible by num_kv_heads ({num_kv_heads})"
+            )
         self.num_gqa_groups = num_query_heads // num_kv_heads
 
         # --- Projection Layers using DenseGeneral ---
@@ -312,7 +322,9 @@ class Attention(nn.Module):
         q_positions: torch.Tensor,  # (B, T)
         kv_positions: torch.Tensor | None = None,  # (B, S)
         deterministic: bool = True,
-        attn_mask: torch.Tensor | None = None,  # None in Decoder Self Attention, Valid mask in Others
+        attn_mask: (
+            torch.Tensor | None
+        ) = None,  # None in Decoder Self Attention, Valid mask in Others
         cache: KVCache | None = None,  # None in Encoder, KVCache in Decoder
         prefill: bool = False,  # True only when prefilling KV Cache
     ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | None]:
@@ -351,7 +363,10 @@ class Attention(nn.Module):
         if self.is_cross_attn:
             # Directly use cache (no need to check index)
             attn_k, attn_v = cache.k, cache.v
-            if attn_k.shape[1] != self.num_query_heads or attn_v.shape[1] != self.num_query_heads:
+            if (
+                attn_k.shape[1] != self.num_query_heads
+                or attn_v.shape[1] != self.num_query_heads
+            ):
                 raise ValueError(
                     f"Cross-attention cache head dimension ({attn_k.shape[1]}) "
                     f"does not match num_query_heads ({self.num_query_heads}). "
@@ -361,7 +376,9 @@ class Attention(nn.Module):
         else:
             Xk_BxSxKxH = self.k_proj(Xkv)  # (B, S, K, H)
             Xv_BxSxKxH = self.v_proj(Xkv)  # (B, S, K, H)
-            Xk_BxSxKxH = self.rotary_emb(Xk_BxSxKxH, position=kv_positions)  # (B, S, K, H)
+            Xk_BxSxKxH = self.rotary_emb(
+                Xk_BxSxKxH, position=kv_positions
+            )  # (B, S, K, H)
 
             Xk_BxKxSxH = Xk_BxSxKxH.transpose(1, 2)  # (B, K, S, H)
             Xv_BxKxSxH = Xv_BxSxKxH.transpose(1, 2)  # (B, K, S, H)
@@ -388,6 +405,11 @@ class Attention(nn.Module):
                 else:
                     new_kv_cache = Xk_BxNxSxH, Xv_BxNxSxH
                     attn_k, attn_v = cache.get_kv_for_attention(Xk_BxNxSxH, Xv_BxNxSxH)
+
+        # Add the dtype conversion here - after both cross-attention and self-attention paths
+        if attn_k is not None and attn_v is not None:
+            attn_k = attn_k.to(Xq_BxNxTxH.dtype)
+            attn_v = attn_v.to(Xq_BxNxTxH.dtype)
 
         attn_output = F.scaled_dot_product_attention(
             Xq_BxNxTxH,
@@ -491,7 +513,9 @@ class Encoder(nn.Module):
             dtype=compute_dtype,
         )
         self.dropout = nn.Dropout(model_config.dropout)
-        self.layers = nn.ModuleList([EncoderLayer(config=config) for _ in range(enc_config.n_layer)])
+        self.layers = nn.ModuleList(
+            [EncoderLayer(config=config) for _ in range(enc_config.n_layer)]
+        )
         self.norm = RMSNorm(
             enc_config.n_embd,
             eps=model_config.normalization_layer_epsilon,
@@ -655,12 +679,16 @@ class Decoder(nn.Module):
 
         self.embeddings = nn.ModuleList(
             [
-                nn.Embedding(model_config.tgt_vocab_size, dec_config.n_embd, dtype=compute_dtype)
+                nn.Embedding(
+                    model_config.tgt_vocab_size, dec_config.n_embd, dtype=compute_dtype
+                )
                 for _ in range(self.num_channels)
             ]
         )
         self.dropout = nn.Dropout(model_config.dropout)
-        self.layers = nn.ModuleList([DecoderLayer(config=config) for _ in range(self.num_layers)])
+        self.layers = nn.ModuleList(
+            [DecoderLayer(config=config) for _ in range(self.num_layers)]
+        )
         self.norm = RMSNorm(
             dec_config.n_embd,
             eps=model_config.normalization_layer_epsilon,
@@ -727,7 +755,9 @@ class Decoder(nn.Module):
             A tuple containing:
             - logits_Bx1xCV: The final output logits for the current step (B, 1, C*V), cast to float32.
         """
-        assert self_attn_mask is None, "Self-attention mask should be None, kept for pattern"
+        assert (
+            self_attn_mask is None
+        ), "Self-attention mask should be None, kept for pattern"
 
         x = None
         for i in range(self.num_channels):
