@@ -8,6 +8,7 @@ Defaults to efficient BF16 SafeTensors for reduced VRAM and faster inference, wi
 [![Python Version](https://img.shields.io/badge/Python-3.10+-blue.svg?style=for-the-badge)](https://www.python.org/downloads/)
 [![Framework](https://img.shields.io/badge/Framework-FastAPI-green.svg?style=for-the-badge)](https://fastapi.tiangolo.com/)
 [![Model Format](https://img.shields.io/badge/Weights-SafeTensors%20/%20pth-orange.svg?style=for-the-badge)](https://github.com/huggingface/safetensors)
+[![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg?style=for-the-badge)](https://www.docker.com/)
 
 <div align="center">
   <img src="static/screenshot-d.png" alt="Dia TTS Server Web UI - Dark Mode" width="33%" />
@@ -28,6 +29,7 @@ We solve the complexity of setting up and running the model by offering:
 *   Support for both original `.pth` weights and modern, secure **[SafeTensors](https://github.com/huggingface/safetensors)**, defaulting to a **BF16 SafeTensors** version which uses roughly half the VRAM and offers improved speed.
 *   Automatic **GPU (CUDA) acceleration** detection with fallback to CPU.
 *   Simple configuration via an `.env` file.
+*   **Docker support** for easy containerized deployment with [Docker](https://www.docker.com/).
 
 This server is your gateway to leveraging Dia's advanced TTS capabilities seamlessly.
 
@@ -61,6 +63,11 @@ This server is your gateway to leveraging Dia's advanced TTS capabilities seamle
     *   💻 **GPU Acceleration:** Automatically uses NVIDIA CUDA if available, falls back to CPU.
     *   ⚙️ Simple configuration via `.env` file.
     *   📦 Uses standard Python virtual environments.
+*   **Docker Support:**
+    *   🐳 Containerized deployment via [Docker](https://www.docker.com/) and Docker Compose.
+    *   🔌 NVIDIA GPU acceleration with Container Toolkit integration.
+    *   💾 Persistent volumes for models, reference audio, and outputs.
+    *   🚀 One-command setup and deployment (`docker compose up -d`).    
 
 ## 🔩 System Prerequisites
 
@@ -388,6 +395,7 @@ You can find it here: [https://opensource.org/licenses/MIT](https://opensource.o
 *   **Core Model:** This project heavily relies on the excellent **[Dia TTS model](https://github.com/nari-labs/dia)** developed by **[Nari Labs](https://github.com/nari-labs)**. Their work in creating and open-sourcing the model is greatly appreciated.
 *   **UI Inspiration:** Special thanks to **[Lex-au](https://github.com/Lex-au)** whose **[Orpheus-FastAPI](https://github.com/Lex-au/Orpheus-FastAPI)** project served as inspiration for the web interface design of this project.
 *   **SafeTensors Conversion:** Thank you to user **[ttj on Hugging Face](https://huggingface.co/ttj)** for providing the converted **[SafeTensors weights](https://huggingface.co/ttj/dia-1.6b-safetensors)** used as the default in this server.
+*   **Containerization Technologies:** [Docker](https://www.docker.com/) and [NVIDIA Container Toolkit](https://github.com/NVIDIA/nvidia-docker) for enabling consistent deployment environments.
 *   **Core Libraries:**
     *   [FastAPI](https://fastapi.tiangolo.com/)
     *   [Uvicorn](https://www.uvicorn.org/)
