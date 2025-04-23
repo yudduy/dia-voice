@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  dia-tts-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-8003}:${PORT:-8003}"
+    volumes:
+      - ./model_cache:/app/model_cache
+      - ./reference_audio:/app/reference_audio
+      - ./outputs:/app/outputs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    env_file:
+      - .env
