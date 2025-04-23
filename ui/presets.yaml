@@ -3,7 +3,10 @@
 
 - name: "Standard Dialogue"
   voice_mode: "dialogue"
-  text: "[S1] Hey, how's it going? [S2] Pretty good! Just grabbing some coffee. You? [S1] Same here. Need the fuel! (laughs)"
+  text: |
+    [S1] Hey, how's it going?
+    [S2] Pretty good! Just grabbing some coffee. You?
+    [S1] Same here. Need the fuel! (laughs)
   params:
     cfg_scale: 3.0
     temperature: 1.3
@@ -13,7 +16,8 @@
 
 - name: "Expressive Narration"
   voice_mode: "dialogue" # Use dialogue mode with single speaker tag
-  text: "[S1] The old house stood on a windswept hill, its windows like empty eyes staring out at the stormy sea. (sighs) It felt... lonely."
+  text: |
+    [S1] The old house stood on a windswept hill, its windows like empty eyes staring out at the stormy sea. (sighs) It felt... lonely.
   params:
     cfg_scale: 3.0
     temperature: 1.2 # Slightly lower temp for clarity
@@ -22,7 +26,8 @@
 
 - name: "Quick Announcement"
   voice_mode: "dialogue" # Use dialogue mode with single speaker tag
-  text: "[S1] Attention shoppers! The store will be closing in 15 minutes. Please bring your final purchases to the checkout."
+  text: |
+    [S1] Attention shoppers! The store will be closing in 15 minutes. Please bring your final purchases to the checkout.
   params:
     cfg_scale: 2.8 # Slightly lower CFG for potentially more natural tone
     temperature: 1.3
@@ -31,7 +36,10 @@
 
 - name: "Funny Exchange"
   voice_mode: "dialogue"
-  text: "[S1] Did you remember to buy the alien repellent? [S2] The what now? I thought you were joking! [S1] Joking? They're landing tonight! (clears throat) Probably."
+  text: |
+    [S1] Did you remember to buy the alien repellent?
+    [S2] The what now? (laughs) I thought you were joking!
+    [S1] Joking? They're landing tonight! (clears throat) Probably.
   params:
     cfg_scale: 3.2 # Slightly higher CFG
     temperature: 1.35 # Slightly higher temp
@@ -40,7 +48,8 @@
 
 - name: "Simple Sentence"
   voice_mode: "dialogue" # Use dialogue mode with single speaker tag
-  text: "[S1] This is a test of the text to speech system."
+  text: |
+    [S1] This is a test of the text to speech system.
   params:
     cfg_scale: 3.0
     temperature: 1.3
