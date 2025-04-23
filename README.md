@@ -16,6 +16,7 @@ Defaults to efficient BF16 SafeTensors for reduced VRAM and faster inference, wi
 
 ---
 
+
 ## 🗣️ Overview: Enhanced Dia TTS Access
 
 The original [Dia model by Nari Labs](https://github.com/nari-labs/dia) provides incredible capabilities for generating realistic dialogue, complete with speaker turns and non-verbal sounds like `(laughs)` or `(sighs)`. This project builds upon that foundation by providing a robust **[FastAPI](https://fastapi.tiangolo.com/) server** that makes Dia significantly easier to use and integrate.
@@ -23,7 +24,7 @@ The original [Dia model by Nari Labs](https://github.com/nari-labs/dia) provides
 We solve the complexity of setting up and running the model by offering:
 
 *   An **OpenAI-compatible API endpoint**, allowing you to use Dia TTS with tools expecting OpenAI's API structure.
-*   A **modern Web UI** for easy experimentation, preset loading, reference audio management, and generation parameter tuning.
+*   A **modern Web UI** for easy experimentation, preset loading, reference audio management, and generation parameter tuning. The interface design draws inspiration from **[Lex-au's Orpheus-FastAPI project](https://github.com/Lex-au/Orpheus-FastAPI)**, adapting its intuitive layout and user experience for Dia TTS.
 *   Support for both original `.pth` weights and modern, secure **[SafeTensors](https://github.com/huggingface/safetensors)**, defaulting to a **BF16 SafeTensors** version which uses roughly half the VRAM and offers improved speed.
 *   Automatic **GPU (CUDA) acceleration** detection with fallback to CPU.
 *   Simple configuration via an `.env` file.
@@ -239,57 +240,6 @@ OUTPUT_PATH=./outputs
 
 ⭐ **Remember:** You **must restart the server** (`python server.py`) after changing the `.env` file! See `config.py` for all available options and their internal defaults.
 
-## 🐳 Docker Installation
-
-You can easily run Dia TTS Server using Docker, which handles all the dependencies and environment setup for you.
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/) (usually included with Docker Desktop)
-- NVIDIA GPU with [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed (for GPU acceleration)
-
-### Quick Start with Docker
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/devnen/dia-tts-server.git
-   cd dia-tts-server
-   ```
-
-2. **Configure environment variables:**
-   Edit the `.env` file with your desired settings. If it doesn't exist, create it:
-   ```bash
-   cp env.example.txt .env
-   ```
-
-3. **Build and start the container:**
-   ```bash
-   docker compose up -d
-   ```
-   The `-d` flag runs the container in detached mode (background).
-
-4. **Access the UI:**
-   Open `http://localhost:8003` in your web browser (or the port you specified in `.env`).
-
-5. **View logs:**
-   ```bash
-   docker compose logs -f
-   ```
-
-6. **Stop the container:**
-   ```bash
-   docker compose down
-   ```
-
-### Docker Volumes
-
-The Docker setup creates three persistent volumes:
-- `./model_cache:/app/model_cache` - Stores downloaded models
-- `./reference_audio:/app/reference_audio` - Stores uploaded reference audio files
-- `./outputs:/app/outputs` - Stores generated audio output
-
-These volumes ensure your data persists across container restarts.
 
 ## ▶️ Running the Server
 
@@ -310,6 +260,7 @@ The first time you run the server, it needs to download the configured model wei
 3.  **Access the UI:** Once the server finishes starting (including any necessary downloads), open `http://localhost:PORT` (e.g., `http://localhost:8003` based on your default config) in your web browser.
 4.  **Access API Docs:** Open `http://localhost:PORT/docs` in your web browser.
 5.  **Stop the server:** Press `CTRL+C` in the terminal where the server is running.
+
 
 ## 💡 Usage
 
@@ -380,6 +331,7 @@ You can find it here: [https://opensource.org/licenses/MIT](https://opensource.o
 ## 🙏 Acknowledgements
 
 *   **Core Model:** This project heavily relies on the excellent **[Dia TTS model](https://github.com/nari-labs/dia)** developed by **[Nari Labs](https://github.com/nari-labs)**. Their work in creating and open-sourcing the model is greatly appreciated.
+*   **UI Inspiration:** Special thanks to **[Lex-au](https://github.com/Lex-au)** whose **[Orpheus-FastAPI](https://github.com/Lex-au/Orpheus-FastAPI)** project served as inspiration for the web interface design of this project.
 *   **SafeTensors Conversion:** Thank you to user **[ttj on Hugging Face](https://huggingface.co/ttj)** for providing the converted **[SafeTensors weights](https://huggingface.co/ttj/dia-1.6b-safetensors)** used as the default in this server.
 *   **Core Libraries:**
     *   [FastAPI](https://fastapi.tiangolo.com/)
