@@ -44,7 +44,7 @@ This server is your gateway to leveraging Dia's advanced TTS capabilities seamle
     *   📄 Interactive API documentation via Swagger UI (`/docs`).
     *   🩺 Health check endpoint (`/health`).
 *   **Intuitive Web User Interface:**
-    *   🖱️ Modern, easy-to-use interface built with Jinja2 and Tailwind CSS.
+    *   🖱️ Modern, easy-to-use interface built with Jinja2 and Tailwind CSS, inspired by **[Lex-au's Orpheus-FastAPI project](https://github.com/Lex-au/Orpheus-FastAPI)**.
     *   💡 **Presets:** Load example text and settings with one click.
     *   🎤 **Reference Audio Upload:** Easily upload `.wav`/`.mp3` files for voice cloning directly from the UI.
     *   🎛️ **Parameter Control:** Adjust generation settings (CFG Scale, Temperature, Speed, etc.) via sliders.
