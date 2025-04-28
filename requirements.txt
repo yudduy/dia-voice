@@ -12,11 +12,17 @@ soundfile # Requires libsndfile system library (e.g., sudo apt-get install libsn
 huggingface_hub
 descript-audio-codec
 safetensors
+openai-whisper
 
 # Configuration & Utilities
 pydantic
-python-dotenv
+python-dotenv # Used ONLY for initial config seeding if config.yaml missing
 Jinja2
-python-multipart # For potential file uploads in UI
+python-multipart # For file uploads
 requests # For health checks or other potential uses
-PyYAML # For parsing presets.yaml
+PyYAML # For parsing presets.yaml AND primary config.yaml
+tqdm
+
+# Audio Post-processing (Optional but recommended)
+pydub # Not currently used in provided utils, but potentially useful
+praat-parselmouth # For unvoiced segment removal
