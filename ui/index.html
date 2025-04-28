@@ -359,7 +359,8 @@
                                     from <code class="code-inline">reference_audio</code> folder.
                                     <strong class="dark:text-yellow-300 text-yellow-600">Important:</strong> save the
                                     exact transcript of the reference audio as the .txt file with the same name as the
-                                    audio file.
+                                    audio file. See the wav and txt files inside the 'voice' subfolder to see how this
+                                    needs to be implemented.
                                 </p>
                                 <div class="flex items-center gap-2">
                                     <select id="clone_reference_select" name="clone_reference_select"
@@ -492,7 +493,8 @@
                                                     title="Enter an integer seed for reproducible results, or -1 for random output.">
                                             </div>
                                             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                                                Integer (default: 42) for reproducible results, or -1 for random seeds.
+                                                Integer (like 1, 42, 901...) for reproducible results, or -1 for random
+                                                seeds.
                                             </p>
                                         </div>
                                         <!-- Save Gen Defaults Button -->
@@ -783,7 +785,8 @@
             </svg>
             <p id="loading-message" class="loading-text">Generating audio...</p>
             <p id="loading-status" class="loading-status">Please wait.</p>
-            <button id="loading-cancel-btn" type="button" class="btn-secondary mt-5">Cancel</button>
+            <button id="loading-cancel-btn" type="button" class="btn-secondary mt-1"
+                title="Cancel the request in the UI. Backend generation might continue briefly.">Cancel</button>
         </div>
     </div>
 
@@ -813,6 +816,37 @@
             <div class="modal-actions">
                 <button id="chunk-warning-cancel" type="button" class="btn-secondary">Cancel Generation</button>
                 <button id="chunk-warning-ok" type="button" class="btn-primary">Proceed Anyway</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generation Warning Modal Template -->
+    <div id="generation-warning-modal" class="modal-overlay hidden opacity-0" data-state="closed">
+        <div class="modal-box">
+            <h3 class="modal-title">Generation Quality Notice</h3>
+            <div class="modal-content">
+                <p>Please be aware that Dia text-to-speech model may sometimes produce unexpected results.</p>
+                <p class="mt-2">This can include:</p>
+                <ul class="list-disc pl-5 mt-1 space-y-1">
+                    <li>Variations in voice consistency or delivery.</li>
+                    <li>Audio occasionally being cut off slightly early.</li>
+                    <li>Insertion of brief unwanted noise or silence.</li>
+                </ul>
+                <p class="mt-2">We apply post-processing steps to mitigate these issues, but they cannot always be
+                    eliminated completely unless the new model and/or inference code is released by the model authors.
+                </p>
+            </div>
+            <div class="mt-4 mb-5 flex items-center">
+                <input type="checkbox" id="hide-generation-warning-checkbox"
+                    class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-700 dark:focus:ring-offset-slate-800 dark:checked:bg-indigo-500 dark:checked:border-indigo-500"
+                    checked>
+                <label for="hide-generation-warning-checkbox"
+                    class="ml-2 block text-sm text-slate-700 dark:text-slate-300 cursor-pointer">Do not show this
+                    warning again</label>
+            </div>
+            <div class="modal-actions">
+                <button id="generation-warning-acknowledge" type="button" class="btn-primary">Acknowledge &
+                    Generate</button>
             </div>
         </div>
     </div>

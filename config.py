@@ -58,6 +58,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "last_chunk_size": 120,
         "last_split_text_enabled": True,
         "hide_chunk_warning": False,
+        "hide_generation_warning": False,
     },
 }
 
@@ -623,4 +624,12 @@ def get_hide_chunk_warning() -> bool:
     """Gets the flag for hiding the chunk warning dialog."""
     return config_manager.get_bool(
         "ui_state.hide_chunk_warning", _get_default("ui_state.hide_chunk_warning")
+    )
+
+
+def get_hide_generation_warning() -> bool:
+    """Gets the flag for hiding the general generation warning dialog."""
+    return config_manager.get_bool(
+        "ui_state.hide_generation_warning",
+        _get_default("ui_state.hide_generation_warning"),
     )

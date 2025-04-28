@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let isGenerationCancelled = false;
     let wavesurfer = null;
     let saveStateTimeout = null; // For debouncing state saves
+    let hideChunkWarning = false; // Get initial warning flag state (will be updated in loadInitialState)    
+    let hideGenerationWarning = false; // Add this line for the new warning
 
     // --- Element Selectors ---
     const ttsForm = document.getElementById('tts-form');
@@ -43,12 +45,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const chunkWarningOkBtn = document.getElementById('chunk-warning-ok');
     const chunkWarningCancelBtn = document.getElementById('chunk-warning-cancel');
     const hideChunkWarningCheckbox = document.getElementById('hide-chunk-warning-checkbox');
+    const generationWarningModal = document.getElementById('generation-warning-modal');
+    const generationWarningAcknowledgeBtn = document.getElementById('generation-warning-acknowledge');
+    const hideGenerationWarningCheckbox = document.getElementById('hide-generation-warning-checkbox');
 
     // --- Configuration & State ---
     // Initial config loaded from server-rendered variable
     let currentConfig = window.initialConfig || {}; // Use loaded config or empty object
     let currentUiState = currentConfig.ui_state || {}; // Extract UI state
-    let hideChunkWarning = currentUiState.hide_chunk_warning || false; // Get initial warning flag state
+    // hideChunkWarning is initialized above, will be set in loadInitialState
+    // hideGenerationWarning is initialized above, will be set in loadInitialState
 
     // --- Debounced State Saving ---
     const DEBOUNCE_DELAY = 750; // ms delay for saving state after changes
@@ -63,7 +69,8 @@ document.addEventListener('DOMContentLoaded', function () {
             last_seed: seedInput ? parseInt(seedInput.value) || 42 : 42,
             last_chunk_size: chunkSizeSlider ? parseInt(chunkSizeSlider.value) || 120 : 120,
             last_split_text_enabled: splitTextToggle ? splitTextToggle.checked : true,
-            hide_chunk_warning: hideChunkWarning // Use the JS variable state
+            hide_chunk_warning: hideChunkWarning, // Use the JS variable state
+            hide_generation_warning: hideGenerationWarning // Add the new flag state
         };
 
         console.log("Debounced save triggered. Saving UI state:", stateToSave);
@@ -163,6 +170,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Load Initial State ---
     function loadInitialState() {
         console.log("Loading initial state from:", currentConfig);
+        hideGenerationWarning = currentUiState.hide_generation_warning || false; // Load the new flag state
+        hideChunkWarning = currentUiState.hide_chunk_warning || false; // Load the chunk warning flag state
+
         // Text Area
         if (textArea && currentUiState.last_text) {
             textArea.value = currentUiState.last_text;
@@ -505,9 +515,42 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Form Submission & Loading State ---
+
+    // --- Helper functions for submission flow (MOVED OUTSIDE LISTENER) ---
+    function proceedWithSubmissionChecks() {
+        // Check chunk warning conditions (reuse existing logic)
+        const text = textArea.value.trim();
+        const mode = document.querySelector('input[name="voice_mode"]:checked')?.value;
+        const isSplitting = splitTextToggle && splitTextToggle.checked;
+        const currentChunkSize = chunkSizeSlider ? parseInt(chunkSizeSlider.value) : 120;
+        const needsChunkWarning = isSplitting &&
+            text.length >= currentChunkSize * 2 &&
+            mode === 'dialogue' && // Only show for random/dialogue mode
+            !hideChunkWarning; // Check the chunk warning flag
+
+        if (needsChunkWarning) {
+            showChunkWarningModal();
+            // Wait for chunk modal interaction (OK button calls showLoadingOverlayAndSubmit)
+            return;
+        }
+
+        // If no chunk warning, proceed to final step
+        showLoadingOverlayAndSubmit();
+    }
+
+    function showLoadingOverlayAndSubmit() {
+        showLoadingOverlay(); // Show the spinner etc.
+        ttsForm.submit(); // Explicitly submit the form now
+    }
+    // --- End Helper functions ---
+
     if (ttsForm) {
         ttsForm.addEventListener('submit', function (event) {
-            // Basic client-side validation
+            event.preventDefault(); // Prevent default submission initially
+
+            // --- Start of actual checks ---
+
+            // Basic client-side validation (reuse existing logic)
             const text = textArea.value.trim();
             const mode = document.querySelector('input[name="voice_mode"]:checked')?.value;
             const predefinedFile = predefinedVoiceSelect?.value;
@@ -515,37 +558,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!text) {
                 showNotification("Please enter some text to generate speech.", 'error');
-                event.preventDefault(); return;
+                return; // Stop processing
             }
             if (mode === 'predefined' && (!predefinedFile || predefinedFile === 'none')) {
                 showNotification("Please select a predefined voice.", 'error');
-                event.preventDefault(); return;
+                return; // Stop processing
             }
             if (mode === 'clone' && (!cloneFile || cloneFile === 'none')) {
                 showNotification("Please select a reference audio file for Voice Clone mode.", 'error');
-                event.preventDefault(); return;
+                return; // Stop processing
             }
 
-            // Check for chunking warning conditions
-            const isSplitting = splitTextToggle && splitTextToggle.checked;
-            const currentChunkSize = chunkSizeSlider ? parseInt(chunkSizeSlider.value) : 120;
-            const currentSeed = seedInput ? parseInt(seedInput.value) : -1;
-            const needsChunkWarning = isSplitting &&
-                text.length >= currentChunkSize * 2 &&
-                mode === 'dialogue' && // Only show for random/dialogue mode
-                !hideChunkWarning; // Check the flag
-
-            if (needsChunkWarning) {
-                event.preventDefault(); // Stop form submission
-                showChunkWarningModal();
-                return; // Wait for modal interaction
+            // --- Check *General* Generation Warning ---
+            if (!hideGenerationWarning) {
+                showGenerationWarningModal();
+                // Wait for generation warning modal interaction (Acknowledge button calls proceedWithSubmissionChecks)
+                return;
             }
 
-            // Proceed with showing loading overlay
-            showLoadingOverlay();
-            // Allow default form submission to proceed
-        });
+            // If general warning is already dismissed, proceed to next checks
+            proceedWithSubmissionChecks();
+
+        }); // --- End of ttsForm submit listener ---
     }
+
 
     function showLoadingOverlay() {
         if (isGenerating) {
@@ -561,7 +597,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const currentChunkSize = chunkSizeSlider ? parseInt(chunkSizeSlider.value) : 120;
             const mightSplit = isSplitting && textArea && textArea.value.length >= currentChunkSize * 2;
             loadingMessage.textContent = mightSplit ? 'Generating audio (processing chunks)...' : 'Generating audio...';
-            loadingStatus.textContent = 'Please wait. This may take a moment.';
+            loadingStatus.innerHTML = 'Please wait. This may take a moment. Check server terminal for detailed status.';
 
             loadingOverlay.classList.remove('hidden');
             requestAnimationFrame(() => {
@@ -621,8 +657,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }).catch(err => console.error("Failed to save hide chunk warning setting:", err));
             }
             hideChunkWarningModal();
-            showLoadingOverlay(); // Show loading overlay
-            ttsForm.submit(); // Manually submit the form now
+            showLoadingOverlayAndSubmit(); // Call the helper to show overlay and submit
         });
     }
     if (chunkWarningCancelBtn) {
@@ -632,6 +667,43 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // --- General Generation Warning Modal ---
+    function showGenerationWarningModal() {
+        // const modal = document.getElementById('generation-warning-modal'); // Already selected globally
+        if (generationWarningModal) {
+            generationWarningModal.classList.remove('hidden');
+            requestAnimationFrame(() => generationWarningModal.classList.remove('opacity-0'));
+        }
+    }
+    function hideGenerationWarningModal() {
+        // const modal = document.getElementById('generation-warning-modal'); // Already selected globally
+        if (generationWarningModal) {
+            generationWarningModal.classList.add('opacity-0');
+            setTimeout(() => generationWarningModal.classList.add('hidden'), 300); // Match transition duration
+        }
+    }
+
+    // Handle Generation Warning Acknowledge button
+    // const generationWarningAcknowledgeBtn = document.getElementById('generation-warning-acknowledge'); // Already selected globally
+    // const hideGenerationWarningCheckbox = document.getElementById('hide-generation-warning-checkbox'); // Already selected globally
+
+    if (generationWarningAcknowledgeBtn && hideGenerationWarningCheckbox) {
+        generationWarningAcknowledgeBtn.addEventListener('click', () => {
+            if (hideGenerationWarningCheckbox.checked) {
+                hideGenerationWarning = true; // Update JS flag
+                // Save the updated flag state immediately
+                // Note: We call the save function directly, not debounced, as it's a specific user action.
+                saveCurrentUiState().catch(err => console.error("Failed immediate save of hide generation warning setting:", err));
+            }
+            hideGenerationWarningModal();
+
+            // Manually trigger the next step in the submission flow
+            proceedWithSubmissionChecks(); // Call the function directly to continue the flow
+
+        });
+    } else {
+        console.warn("Could not find generation warning modal acknowledge button or checkbox.");
+    }
 
     // --- Result Handling (on page load after form submission) ---
     if (window.initialGenResult && window.initialGenResult.outputUrl) {
