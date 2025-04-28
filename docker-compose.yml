@@ -11,6 +11,7 @@ services:
       - ./model_cache:/app/model_cache
       - ./reference_audio:/app/reference_audio
       - ./outputs:/app/outputs
+      - ./voices:/app/voices
     deploy:
       resources:
         reservations:
