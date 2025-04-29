@@ -23,6 +23,6 @@ requests # For health checks or other potential uses
 PyYAML # For parsing presets.yaml AND primary config.yaml
 tqdm
 
-# Audio Post-processing (Optional but recommended)
-pydub # Not currently used in provided utils, but potentially useful
+# Audio Post-processing
+pydub
 praat-parselmouth # For unvoiced segment removal
