@@ -12,6 +12,7 @@ services:
       - ./reference_audio:/app/reference_audio
       - ./outputs:/app/outputs
       - ./voices:/app/voices
+      - ./config.yaml:/app/config.yaml
     deploy:
       resources:
         reservations:
