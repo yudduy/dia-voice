@@ -252,49 +252,178 @@ The first time you run the server (or after changing model settings in `config.y
 4.  **Access API Docs:** Open `http://localhost:PORT/docs`.
 5.  **Stop the server:** Press `CTRL+C` in the terminal.
 
+Okay, here is a revised Docker installation section for your `README.md`, incorporating the recent changes and decisions. It prioritizes using Docker Compose with the pre-built image from GitHub Container Registry (GHCR) as the recommended method.
+
+---
+
 ## 🐳 Docker Installation
 
-Run Dia TTS Server easily using Docker.
+Run Dia TTS Server easily using Docker. The recommended method uses Docker Compose with pre-built images from GitHub Container Registry (GHCR).
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-- (Optional) NVIDIA GPU with [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) for GPU acceleration.
+*   [Docker](https://docs.docker.com/get-docker/) installed.
+*   [Docker Compose](https://docs.docker.com/compose/install/) installed (usually included with Docker Desktop).
+*   (Optional but Recommended for GPU) NVIDIA GPU with up-to-date drivers and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed.
 
-### Quick Start with Docker
+### Option 1: Using Docker Compose (Recommended)
 
-1.  **Clone the repository:**
+This method uses `docker-compose.yml` to manage the container, volumes, and configuration easily. It leverages pre-built images hosted on GHCR.
+
+1.  **Clone the repository:** (You only need the `docker-compose.yml` and `env.example.txt` files from it)
     ```bash
     git clone https://github.com/devnen/dia-tts-server.git
     cd dia-tts-server
     ```
-2.  **(Optional) Initial Configuration via `.env`:** If `config.yaml` doesn't exist yet, you can create a `.env` file (e.g., `cp env.example.txt .env`) to seed the initial `config.yaml` when the container starts. Otherwise, defaults will be used.
-3.  **Build and start the container:**
+
+2.  **(Optional) Initial Configuration via `.env`:**
+    *   If this is your very first time running the container and you want to override the default settings *before* `config.yaml` is created inside the container, copy the example environment file:
+        ```bash
+        cp env.example.txt .env
+        ```
+    *   Edit the `.env` file with your desired initial settings (e.g., `PORT`, model filenames).
+    *   **Note:** This `.env` file is *only* used to seed the *initial* `config.yaml` on the very first container start if `/app/config.yaml` doesn't already exist inside the container's volume (which it won't initially). Subsequent configuration changes should be made via the UI or by editing `config.yaml` directly (see Configuration Note below).
+
+3.  **Review `docker-compose.yml`:**
+    *   The repository includes a `docker-compose.yml` file configured to use the pre-built image and recommended settings. Ensure it looks similar to this:
+
+        ```yaml
+        # docker-compose.yml
+        version: '3.8'
+
+        services:
+          dia-tts-server:
+            # Use the pre-built image from GitHub Container Registry
+            image: ghcr.io/devnen/dia-tts-server:latest
+            # Alternatively, to build locally (e.g., for development):
+            # build:
+            #   context: .
+            #   dockerfile: Dockerfile
+            ports:
+              # Map host port (default 8003) to container port 8003
+              # You can change the host port via .env (e.g., PORT=8004)
+              - "${PORT:-8003}:8003"
+            volumes:
+              # Mount local directories into the container for persistent data
+              - ./model_cache:/app/model_cache
+              - ./reference_audio:/app/reference_audio
+              - ./outputs:/app/outputs
+              - ./voices:/app/voices
+              # DO NOT mount config.yaml - let the app create it inside
+
+            # --- GPU Access ---
+            # Modern method (Recommended for newer Docker/NVIDIA setups)
+            devices:
+              - nvidia.com/gpu=all
+            device_cgroup_rules:
+              - "c 195:* rmw" # Needed for some NVIDIA container toolkit versions
+              - "c 236:* rmw" # Needed for some NVIDIA container toolkit versions
+
+            # Legacy method (Alternative for older Docker/NVIDIA setups)
+            # If the 'devices' block above doesn't work, comment it out and uncomment
+            # the 'deploy' block below. Do not use both simultaneously.
+            # deploy:
+            #   resources:
+            #     reservations:
+            #       devices:
+            #         - driver: nvidia
+            #           count: 1 # Or specify specific GPUs e.g., "device=0,1"
+            #           capabilities: [gpu]
+            # --- End GPU Access ---
+
+            restart: unless-stopped
+            env_file:
+              # Load environment variables from .env file for initial config seeding
+              - .env
+            environment:
+              # Enable faster Hugging Face downloads inside the container
+              - HF_HUB_ENABLE_HF_TRANSFER=1
+              # Pass GPU capabilities (may be needed for legacy method if uncommented)
+              - NVIDIA_VISIBLE_DEVICES=all
+              - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+        # Optional: Define named volumes if you prefer them over host mounts
+        # volumes:
+        #   model_cache:
+        #   reference_audio:
+        #   outputs:
+        #   voices:
+        ```
+
+4.  **Start the container:**
     ```bash
-    docker compose up -d --build
+    docker compose up -d
     ```
-    The `--build` flag ensures the image is built with the latest code and dependencies. `-d` runs in the background.
-4.  **Access the UI:**
-    Open `http://localhost:8003` (or your configured port).
-5.  **View logs:**
+    *   This command will:
+        *   Pull the latest `ghcr.io/devnen/dia-tts-server:latest` image.
+        *   Create the local directories (`model_cache`, `reference_audio`, `outputs`, `voices`) if they don't exist.
+        *   Start the container in detached mode (`-d`).
+    *   The first time you run this, it will download the TTS models into `./model_cache`, which may take some time depending on your internet speed.
+
+5.  **Access the UI:**
+    Open your web browser to `http://localhost:8003` (or the host port you configured in `.env`).
+
+6.  **View logs:**
     ```bash
     docker compose logs -f
     ```
-6.  **Stop the container:**
+
+7.  **Stop the container:**
     ```bash
     docker compose down
     ```
-7.  **Configuration Note:** Once running, configuration changes should ideally be made by editing the `config.yaml` file within the container (e.g., using `docker compose exec dia-tts-server nano /app/config.yaml`) or via the UI, rather than relying on the `.env` file (unless resetting).
+
+### Option 2: Using `docker run` (Alternative)
+
+This method runs the container directly without Docker Compose, requiring manual specification of ports, volumes, and GPU flags.
+
+```bash
+# Ensure local directories exist first:
+# mkdir -p model_cache reference_audio outputs voices
+
+docker run -d \
+  --name dia-tts-server \
+  -p 8003:8003 \
+  -v ./model_cache:/app/model_cache \
+  -v ./reference_audio:/app/reference_audio \
+  -v ./outputs:/app/outputs \
+  -v ./voices:/app/voices \
+  --env HF_HUB_ENABLE_HF_TRANSFER=1 \
+  --gpus all \
+  ghcr.io/devnen/dia-tts-server:latest
+```
+
+*   Replace `8003:8003` with `<your_host_port>:8003` if needed.
+*   `--gpus all` enables GPU access; consult NVIDIA Container Toolkit documentation for alternatives if needed.
+*   Initial configuration relies on model defaults unless you pass environment variables using multiple `-e VAR=VALUE` flags (more complex than using `.env` with Compose).
+
+### Configuration Note
+
+*   The server uses `config.yaml` inside the container (`/app/config.yaml`) for its settings.
+*   On the *very first start*, if `/app/config.yaml` doesn't exist, the server creates it using defaults from the code, potentially overridden by variables in the `.env` file (if using Docker Compose and `.env` exists).
+*   **After the first start,** changes should be made by:
+    *   Using the Web UI's settings page (if available).
+    *   Editing the `config.yaml` file *inside* the container (e.g., `docker compose exec dia-tts-server nano /app/config.yaml`). Changes require a container restart (`docker compose restart dia-tts-server`) to take effect for server/model/path settings. UI state changes are saved live.
+
+### Performance Optimizations
+
+*   **Faster Model Downloads**: `hf-transfer` is enabled by default in the provided `docker-compose.yml` and image, significantly speeding up initial model downloads from Hugging Face.
+*   **GPU Acceleration**: The `docker-compose.yml` and `docker run` examples include flags (`devices` or `--gpus`) to enable NVIDIA GPU acceleration if available. The Docker image uses a CUDA runtime base for efficiency.
 
 ### Docker Volumes
 
-Persistent volumes are created for:
-- `./model_cache:/app/model_cache` (Models)
-- `./reference_audio:/app/reference_audio` (Reference audio)
-- `./outputs:/app/outputs` (Generated audio)
-- `./voices:/app/voices` (Predefined voices)
-- `./config.yaml:/app/config.yaml` (Primary configuration file - **Recommended** to ensure your settings persist if the container is removed and recreated).
+Persistent data is stored on your host machine via volume mounts:
+
+*   `./model_cache:/app/model_cache` (Downloaded TTS and Whisper models)
+*   `./reference_audio:/app/reference_audio` (Your uploaded reference audio files for cloning)
+*   `./outputs:/app/outputs` (Generated audio files)
+*   `./voices:/app/voices` (Predefined voice audio files)
+
+### Available Images
+
+*   **GitHub Container Registry**: `ghcr.io/devnen/dia-tts-server:latest` (Automatically built from the `main` branch)
+
+---
 
 ## 💡 Usage
 
