@@ -140,32 +140,110 @@ def get_device() -> torch.device:
         return torch.device("cpu")
 
 
-def get_compute_dtype(device: torch.device) -> str:  # Changed type hint to str
-    """Determines the recommended compute dtype string based on device capabilities."""
-    # Ensure ComputeDtype was imported correctly before using it for comparison logic
-    # We still need the Enum for the logic, but return the string value.
+def get_compute_dtype(device: torch.device, weights_filename: str) -> str:
+    """
+    Determines the recommended compute dtype string based on device capabilities
+    AND the type of model weights indicated by the filename.
+
+    Args:
+        device: The torch.device the model will run on (e.g., torch.device('cuda')).
+        weights_filename: The filename of the model weights being loaded (e.g., "dia-v0_1_bf16.safetensors").
+
+    Returns:
+        A string representing the compute dtype (e.g., "bfloat16", "float16", "float32").
+    """
+    # Determine if the filename suggests a BF16 model by checking for 'bf16' substring
+    is_bf16_model = "bf16" in weights_filename.lower()
+    logger.info(
+        f"Analyzing weights filename '{weights_filename}': Detected model type appears to be {'BF16' if is_bf16_model else 'Non-BF16 (likely FP32/FP16)'}"
+    )
+
+    # Check if ComputeDtype enum was successfully imported
     if ComputeDtype is None:
         logger.warning(
-            "ComputeDtype enum not available from dia.model, defaulting to 'float32' string."
+            "ComputeDtype enum not available from dia.model (import failed?). Defaulting compute dtype selection to basic fallback."
         )
-        return "float32"  # Return string directly
+        # --- Fallback logic without the enum ---
+        # This provides basic functionality if the enum import fails.
+        if device.type == "cuda":
+            # Check hardware capabilities directly
+            supports_bf16_fallback = torch.cuda.is_bf16_supported()
+            compute_capability_fallback = torch.cuda.get_device_capability(device)
+            supports_fp16_fallback = (
+                compute_capability_fallback[0] >= 7
+            )  # Tensor Cores needed for efficient FP16
 
+            if is_bf16_model:
+                if supports_bf16_fallback:
+                    logger.info(
+                        "Fallback: BF16 model and BF16 supported. Using 'bfloat16'."
+                    )
+                    return "bfloat16"
+                elif supports_fp16_fallback:
+                    logger.warning(
+                        "Fallback: BF16 model, BF16 not supported. Using 'float16'."
+                    )
+                    return "float16"
+                else:
+                    logger.warning(
+                        "Fallback: BF16 model, BF16/FP16 not supported. Using 'float32'."
+                    )
+                    return "float32"
+            else:  # Non-BF16 model
+                logger.info(
+                    "Fallback: Non-BF16 model. Using 'float32' for compatibility."
+                )
+                return "float32"  # Prioritize FP32 for non-BF16 models
+
+        elif device.type == "mps":
+            logger.info("Fallback: MPS device. Using 'float16'.")
+            return "float16"  # FP16 is generally preferred on MPS
+        else:  # CPU
+            logger.info("Fallback: CPU device. Using 'float32'.")
+            return "float32"  # FP32 is standard for CPU
+
+    # --- Preferred logic using the ComputeDtype enum ---
     if device.type == "cuda":
-        if torch.cuda.is_bf16_supported():
-            logger.info("CUDA device supports bfloat16, using BF16 compute dtype.")
-            return ComputeDtype.BFLOAT16.value  # Return string value
-        else:
+        supports_bf16 = torch.cuda.is_bf16_supported()
+        # Check device capability for FP16 (requires compute capability >= 7.0 for efficient use)
+        compute_capability = torch.cuda.get_device_capability(device)
+        supports_fp16 = compute_capability[0] >= 7
+
+        if is_bf16_model:
+            if supports_bf16:
+                logger.info(
+                    "BF16 model detected and CUDA device supports bfloat16. Using BF16 compute dtype."
+                )
+                return ComputeDtype.BFLOAT16.value  # Return string value "bfloat16"
+            elif supports_fp16:
+                logger.warning(
+                    "BF16 model detected, but CUDA device does NOT support bfloat16. Falling back to FP16 compute dtype."
+                )
+                return ComputeDtype.FLOAT16.value  # Return string value "float16"
+            else:
+                logger.warning(
+                    "BF16 model detected, but CUDA device supports neither bfloat16 nor efficient FP16. Falling back to FP32 compute dtype."
+                )
+                return ComputeDtype.FLOAT32.value  # Return string value "float32"
+        else:  # Not a BF16 model (e.g., dia-v0_1.safetensors or dia-v0_1.pth)
+            # ** FIX: If the model isn't explicitly BF16, prioritize FP32 for accuracy, **
+            # ** regardless of hardware support for lower precisions. **
             logger.info(
-                "CUDA device does not support bfloat16, using FP16 compute dtype."
+                "Non-BF16 model weights detected. Using FP32 compute dtype on CUDA for maximum compatibility and accuracy."
             )
-            return ComputeDtype.FLOAT16.value  # Return string value
+            return ComputeDtype.FLOAT32.value  # Return string value "float32"
+
     elif device.type == "mps":
-        logger.info("MPS device detected, using FP16 compute dtype.")
-        # Note: FP16 might be the only practical option on MPS for many models
-        return ComputeDtype.FLOAT16.value  # Return string value
+        # MPS generally works best with FP16 or FP32. Defaulting to FP16 for potential performance benefits.
+        # If issues arise with non-BF16 models on MPS, consider changing this to FP32.
+        logger.info(
+            "MPS device detected. Using FP16 compute dtype as a general recommendation."
+        )
+        return ComputeDtype.FLOAT16.value  # Return string value "float16"
+
     else:  # CPU
-        logger.info("CPU device detected, using FP32 compute dtype.")
-        return ComputeDtype.FLOAT32.value  # Return string value
+        logger.info("CPU device detected. Using FP32 compute dtype.")
+        return ComputeDtype.FLOAT32.value  # Return string value "float32"
 
 
 def load_model():
@@ -186,7 +264,9 @@ def load_model():
     weights_filename = get_model_weights_filename()
     cache_path = get_model_cache_path()
     model_device = get_device()
-    compute_dtype_str = get_compute_dtype(model_device)  # Determine compute dtype
+    compute_dtype_str = get_compute_dtype(
+        model_device, weights_filename
+    )  # Determine compute dtype
 
     logger.info(f"Attempting to load Dia model:")
     logger.info(f"  Repo ID: {repo_id}")
