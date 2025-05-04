@@ -14,6 +14,8 @@ from typing import Optional, Tuple, Dict, Any, Set, List
 # Import config manager to get paths dynamically
 from config import config_manager, get_predefined_voices_path, get_reference_audio_path
 
+import librosa  # For audio resampling
+
 # Optional import for unvoiced segment detection
 try:
     import parselmouth
@@ -201,17 +203,97 @@ def encode_audio(
         logger.warning("encode_audio received empty or None audio array.")
         return None
 
+    # Ensure librosa is installed if needed (install with: pip install librosa)
+    # (No runtime check here, assumes installed if this code is reached)
+
     start_time = time.time()
     output_buffer = io.BytesIO()
 
+
     try:
         if output_format == "opus":
+            # Define Opus supported rates and a target rate for resampling
+            OPUS_SUPPORTED_RATES = {8000, 12000, 16000, 24000, 48000}
+            TARGET_OPUS_RATE = 48000  # Default target rate if resampling needed
+
+            audio_to_write = audio_array
+            rate_to_write = sample_rate
+
+            # Check if resampling is needed
+            if sample_rate not in OPUS_SUPPORTED_RATES:
+                logger.warning(
+                    f"Original sample rate {sample_rate}Hz not supported by Opus. "
+                    f"Attempting to resample to {TARGET_OPUS_RATE}Hz."
+                )
+                try:
+                    # Ensure input is float32 as expected by docstring and librosa
+                    if audio_array.dtype != np.float32:
+                        logger.warning(f"Input audio was {audio_array.dtype}, converting to float32 for resampling.")
+                        # Handle common cases like int16 -> float32 normalization
+                        if audio_array.dtype == np.int16:
+                            audio_array = audio_array.astype(np.float32) / 32768.0
+                        elif audio_array.dtype == np.int32:
+                            audio_array = audio_array.astype(np.float32) / 2147483648.0
+                        # Add other integer types if necessary
+                        elif np.issubdtype(audio_array.dtype, np.integer):
+                             # Basic scaling assuming it's signed int
+                             max_val = np.iinfo(audio_array.dtype).max
+                             audio_array = audio_array.astype(np.float32) / max_val
+                        else: # Fallback direct conversion for uint8 or others (might need specific scaling)
+                            audio_array = audio_array.astype(np.float32)
+
+                    # Librosa expects mono (n_samples,) or stereo (2, n_samples).
+                    # Soundfile often uses (n_samples, n_channels). Transpose if multi-channel.
+                    if audio_array.ndim > 1 and audio_array.shape[1] > 1: # Multi-channel (samples, channels)
+                        logger.debug(f"Resampling multi-channel audio (shape: {audio_array.shape})")
+                        # Transpose to (channels, samples) for librosa
+                        audio_to_resample = audio_array.T
+                        resampled_audio_T = librosa.resample(
+                            y=audio_to_resample, orig_sr=sample_rate, target_sr=TARGET_OPUS_RATE
+                        )
+                        # Transpose back to (samples, channels) for soundfile
+                        audio_to_write = resampled_audio_T.T
+                    elif audio_array.ndim == 1 : # Mono (samples,)
+                        logger.debug(f"Resampling mono audio (shape: {audio_array.shape})")
+                        audio_to_write = librosa.resample(
+                           y=audio_array, orig_sr=sample_rate, target_sr=TARGET_OPUS_RATE
+                        )
+                    elif audio_array.ndim == 2 and audio_array.shape[1] == 1: # Shape (samples, 1) -> treat as mono
+                         logger.debug(f"Audio shape {audio_array.shape} is mono with channel dim, squeezing for resampling.")
+                         audio_squeezed = np.squeeze(audio_array)
+                         audio_to_write = librosa.resample(
+                            y=audio_squeezed, orig_sr=sample_rate, target_sr=TARGET_OPUS_RATE
+                         )
+                         # Keep output shape consistent if needed? sf.write handles mono fine.
+                         # audio_to_write = np.expand_dims(audio_to_write, axis=-1) # Optional: restore channel dim
+                    else:
+                        # Cannot safely handle this shape
+                         raise ValueError(f"Cannot handle audio shape {audio_array.shape} for resampling")
+
+
+                    rate_to_write = TARGET_OPUS_RATE
+                    logger.info(f"Resampling successful to {rate_to_write}Hz.")
+
+                except ValueError as ve:
+                    # Handle specific shape errors from above
+                    logger.error(f"Audio shape error during resampling prep: {ve}", exc_info=True)
+                    return None
+                except Exception as resample_e:
+                    logger.error(f"Failed to resample audio from {sample_rate}Hz to {TARGET_OPUS_RATE}Hz: {resample_e}", exc_info=True)
+                    # Decide how to handle: return None, raise error, or try writing original? Returning None seems safest.
+                    return None
+            else:
+                 logger.debug(f"Sample rate {sample_rate}Hz is already supported by Opus. No resampling needed.")
+                 # No resampling needed, audio_to_write and rate_to_write already set
+
+            # Write the original or resampled audio data
             # Soundfile handles float32 for Opus correctly with format='ogg', subtype='opus'
             sf.write(
-                output_buffer, audio_array, sample_rate, format="ogg", subtype="opus"
+                output_buffer, audio_to_write, rate_to_write, format="ogg", subtype="opus"
             )
             # content_type = "audio/ogg; codecs=opus" # More specific
             content_type = "audio/opus"  # Match OpenAI response type
+
         elif output_format == "wav":
             # WAV typically uses int16 for broader compatibility
             # Ensure clipping doesn't occur if input slightly exceeds [-1, 1]
@@ -232,17 +314,16 @@ def encode_audio(
         )
         return encoded_bytes
 
-    except ImportError:
+    except ImportError as ie:
+        # Catch specific import error for soundfile or libsndfile
         logger.critical(
-            "`soundfile` or its dependency `libsndfile` not found/installed correctly. Cannot encode audio."
+            f"`soundfile` or its dependency `libsndfile` not found/installed correctly. Cannot encode audio. Error: {ie}"
         )
-        # Depending on server setup, might want to raise or return None
-        # raise # Re-raise critical error if server should stop
         return None  # Return None to allow server to handle gracefully
     except Exception as e:
+        # Catch errors during sf.write or other unexpected issues
         logger.error(f"Error encoding audio to {output_format}: {e}", exc_info=True)
         return None
-
 
 def save_audio_to_file(
     audio_array: np.ndarray, sample_rate: int, file_path: str

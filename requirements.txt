@@ -26,3 +26,4 @@ tqdm
 # Audio Post-processing
 pydub
 praat-parselmouth # For unvoiced segment removal
+librosa # for changes to sampling
