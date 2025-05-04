@@ -27,3 +27,4 @@ tqdm
 pydub
 praat-parselmouth # For unvoiced segment removal
 librosa # for changes to sampling
+hf-transfer
