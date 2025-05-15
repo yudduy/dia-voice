@@ -7,6 +7,75 @@ from typing import Optional, Literal
 # --- Request Models ---
 
 
+class LongAudioRequest(BaseModel):
+    """Request model for generating long audio."""
+
+    text: str = Field(
+        ...,
+        description="The text to synthesize. For 'dialogue' mode, include [S1]/[S2] tags.",
+    )
+    voice_mode: Literal["predefined", "dialogue", "single_s1", "single_s2", "clone"] = Field(
+        default="single_s1", description="Specifies the generation mode."
+    )
+    clone_reference_filename: Optional[str] = Field(
+        default=None,
+        description="Filename of the reference audio for cloning, or predefined voice name.",
+    )
+    transcript: Optional[str] = Field(
+        default=None,
+        description="Optional transcript of the reference audio for cloning.",
+    )
+    output_format: Literal["opus", "wav"] = Field(
+        default="opus", description="The desired audio output format."
+    )
+    max_tokens: Optional[int] = Field(
+        default=None,
+        description="Maximum number of audio tokens to generate per chunk (defaults to model's internal value).",
+    )
+    cfg_scale: float = Field(
+        default=3.0,
+        ge=1.0,
+        le=5.0,
+        description="Classifier-Free Guidance scale (1.0-5.0).",
+    )
+    temperature: float = Field(
+        default=1.3,
+        ge=0.1,
+        le=1.5,
+        description="Sampling temperature (0.1-1.5).",
+    )
+    top_p: float = Field(
+        default=0.95,
+        ge=0.1,
+        le=1.0,
+        description="Nucleus sampling probability (0.1-1.0).",
+    )
+    speed_factor: float = Field(
+        default=0.94,
+        ge=0.5,
+        le=2.0,
+        description="Adjusts the speed of the generated audio (0.5 to 2.0).",
+    )
+    cfg_filter_top_k: int = Field(
+        default=35,
+        ge=1,
+        le=100,
+        description="Top k filter for CFG guidance (1-100).",
+    )
+    seed: int = Field(
+        default=-1,
+        description="Generation seed. Use -1 for random, or a specific integer for deterministic output.",
+    )
+    chunk_size: int = Field(
+        default=300,
+        ge=100,
+        le=1000,
+        description="Target chunk size in characters for long text processing (100-1000).",
+    )
+
+
+
+
 class OpenAITTSRequest(BaseModel):
     """Request model compatible with the OpenAI TTS API."""
 

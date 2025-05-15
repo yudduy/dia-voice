@@ -65,7 +65,7 @@ from config import (
 )
 
 # Import updated request models
-from models import OpenAITTSRequest, CustomTTSRequest, ErrorResponse
+from models import OpenAITTSRequest, CustomTTSRequest, ErrorResponse, LongAudioRequest
 import engine
 from engine import (
     load_model as load_dia_model,
@@ -336,6 +336,139 @@ async def get_predefined_voices_endpoint():
 
 # --- API Endpoints (TTS Generation) ---
 
+@app.post(
+    "/api/v1/tts/generate_long",
+    response_class=StreamingResponse,
+    tags=["TTS Generation"],
+    summary="Generate long audio from text",
+    responses={
+        200: {"content": {"audio/opus": {}, "audio/wav": {}}},
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
+)
+async def generate_long_audio_endpoint(request: LongAudioRequest):
+    """
+    Generates long audio from text by automatically chunking and processing text in segments.
+    Ideal for content 30 seconds or longer. Takes the same parameters as standard TTS,
+    but optimized for larger blocks of text and longer audio generation.
+    """
+    if not engine.MODEL_LOADED:
+        raise HTTPException(
+            status_code=503,
+            detail="Model not loaded. Server is starting or encountered an error.",
+        )
+
+    monitor = PerformanceMonitor()
+    monitor.record("Long audio request received")
+    logger.info(
+        f"Received long audio request: mode='{request.voice_mode}', format='{request.output_format}', seed={request.seed}"
+    )
+    logger.info(f"Text length: {len(request.text)} characters")
+
+    # Import the long audio generation function here to avoid circular imports
+    try:
+        from app.utils.long_audio import generate_long_audio
+    except ImportError as e:
+        logger.error(f"Failed to import long audio utils: {e}")
+        raise HTTPException(
+            status_code=500, detail="Long audio generation module not available"
+        )
+
+    # Handle reference file for clone mode
+    reference_file_for_engine = None
+    if request.voice_mode == "clone":
+        if not request.clone_reference_filename:
+            raise HTTPException(
+                status_code=400,
+                detail="Missing 'clone_reference_filename' for clone mode.",
+            )
+        ref_path = get_reference_audio_path()
+        potential_path = os.path.join(ref_path, request.clone_reference_filename)
+        if not os.path.isfile(potential_path):
+            logger.error(
+                f"Reference audio file not found for clone mode: {potential_path}"
+            )
+            raise HTTPException(
+                status_code=404,
+                detail=f"Reference audio file not found: {request.clone_reference_filename}",
+            )
+        reference_file_for_engine = potential_path
+
+    elif request.voice_mode == "predefined":
+        if not request.clone_reference_filename:
+            raise HTTPException(
+                status_code=400,
+                detail="Missing 'clone_reference_filename' (expected predefined voice filename) for predefined mode.",
+            )
+        predefined_path = get_predefined_voices_path()
+        potential_path = os.path.join(predefined_path, request.clone_reference_filename)
+        if not os.path.isfile(potential_path):
+            logger.error(f"Predefined voice file not found: {potential_path}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Predefined voice file not found: {request.clone_reference_filename}",
+            )
+        reference_file_for_engine = potential_path
+        voice_mode_for_engine = "clone"
+    else:
+        voice_mode_for_engine = request.voice_mode
+
+    monitor.record("Parameters processed")
+    
+    try:
+        # Generate the long audio
+        result = generate_long_audio(
+            text=request.text,
+            voice_mode=voice_mode_for_engine if request.voice_mode != "predefined" else "clone",
+            clone_reference_filename=reference_file_for_engine,
+            transcript=request.transcript,
+            max_tokens=request.max_tokens,
+            cfg_scale=request.cfg_scale,
+            temperature=request.temperature,
+            top_p=request.top_p,
+            speed_factor=request.speed_factor,
+            cfg_filter_top_k=request.cfg_filter_top_k,
+            seed=request.seed,
+            enable_silence_trimming=True,
+            enable_internal_silence_fix=True,
+            enable_unvoiced_removal=True,
+            max_chunk_chars=request.chunk_size
+        )
+        
+        if result is None:
+            logger.error("Long audio generation failed.")
+            raise HTTPException(status_code=500, detail="Long audio generation failed.")
+        
+        audio_array, sample_rate = result
+        
+        # Encode the audio
+        from utils import encode_audio
+        encoded_audio = encode_audio(audio_array, sample_rate, request.output_format)
+        
+        if encoded_audio is None:
+            logger.error(f"Failed to encode audio to format: {request.output_format}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to encode audio to {request.output_format}",
+            )
+            
+        media_type = "audio/opus" if request.output_format == "opus" else "audio/wav"
+        logger.info(f"Successfully generated {len(encoded_audio)} bytes of long audio in format {request.output_format}")
+        
+        return StreamingResponse(io.BytesIO(encoded_audio), media_type=media_type)
+        
+    except HTTPException as http_exc:
+        logger.error(f"HTTP exception during long audio request: {http_exc.detail}")
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error processing long audio request: {e}", exc_info=True)
+        logger.debug(monitor.report())
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 
 @app.post(
     "/v1/audio/speech",
@@ -445,27 +578,58 @@ async def openai_tts_endpoint(request: OpenAITTSRequest):
         else:
             voice_mode_for_engine = voice_mode  # Use dialogue, single_s1, single_s2
 
-        # Call the core engine function using mapped parameters and defaults from config.yaml
-        result = generate_speech(
-            text_to_process=request.input,
-            voice_mode=voice_mode_for_engine,  # Pass mode adjusted for engine
-            clone_reference_filename=reference_file_for_engine,  # Pass full path or None
-            transcript=None,  # OpenAI API doesn't support explicit transcript
-            speed_factor=request.speed,
-            seed=request.seed,
-            # Use Dia's configured defaults for other generation params
-            max_tokens=None,
-            cfg_scale=get_gen_default_cfg_scale(),
-            temperature=get_gen_default_temperature(),
-            top_p=get_gen_default_top_p(),
-            cfg_filter_top_k=get_gen_default_cfg_filter_top_k(),
-            split_text=get_gen_default_split_text(),  # Use configured default
-            chunk_size=get_gen_default_chunk_size(),  # Use configured default
-            # Use default post-processing settings
-            enable_silence_trimming=True,
-            enable_internal_silence_fix=True,
-            enable_unvoiced_removal=True,
-        )
+        # Check if this is a long audio request (over 30 seconds of estimated content)
+        # Average reading speed is about 150 words per minute, or ~15 chars per second
+        estimated_audio_length_seconds = len(request.input) / 15  # Rough estimation
+        use_long_audio = estimated_audio_length_seconds > 30  # Over 30 seconds
+        
+        if use_long_audio:
+            logger.info(f"OpenAI request estimated duration: {estimated_audio_length_seconds:.1f}s - Using long audio processor")
+            try:
+                from app.utils.long_audio import generate_long_audio
+                result = generate_long_audio(
+                    text=request.input,
+                    voice_mode=voice_mode_for_engine,
+                    clone_reference_filename=reference_file_for_engine,
+                    transcript=None,  # OpenAI API doesn't support explicit transcript
+                    speed_factor=request.speed,
+                    seed=request.seed,
+                    max_tokens=None,
+                    cfg_scale=get_gen_default_cfg_scale(),
+                    temperature=get_gen_default_temperature(),
+                    top_p=get_gen_default_top_p(),
+                    cfg_filter_top_k=get_gen_default_cfg_filter_top_k(),
+                    enable_silence_trimming=True,
+                    enable_internal_silence_fix=True,
+                    enable_unvoiced_removal=True,
+                    max_chunk_chars=get_gen_default_chunk_size()
+                )
+            except ImportError as e:
+                logger.error(f"Failed to import long audio utils, falling back to standard generator: {e}")
+                use_long_audio = False
+        
+        if not use_long_audio:
+            # Use standard speech generation for shorter content
+            result = generate_speech(
+                text_to_process=request.input,
+                voice_mode=voice_mode_for_engine,  # Pass mode adjusted for engine
+                clone_reference_filename=reference_file_for_engine,  # Pass full path or None
+                transcript=None,  # OpenAI API doesn't support explicit transcript
+                speed_factor=request.speed,
+                seed=request.seed,
+                # Use Dia's configured defaults for other generation params
+                max_tokens=None,
+                cfg_scale=get_gen_default_cfg_scale(),
+                temperature=get_gen_default_temperature(),
+                top_p=get_gen_default_top_p(),
+                cfg_filter_top_k=get_gen_default_cfg_filter_top_k(),
+                split_text=get_gen_default_split_text(),  # Use configured default
+                chunk_size=get_gen_default_chunk_size(),  # Use configured default
+                # Use default post-processing settings
+                enable_silence_trimming=True,
+                enable_internal_silence_fix=True,
+                enable_unvoiced_removal=True,
+            )
         monitor.record("Generation complete")
 
         if result is None:
@@ -599,26 +763,57 @@ async def custom_tts_endpoint(request: CustomTTSRequest):
     monitor.record("Parameters processed")
 
     try:
-        # Call the core engine function with all parameters from the request
-        result = generate_speech(
-            text_to_process=request.text,
-            voice_mode=voice_mode_for_engine,  # Use potentially adjusted mode
-            clone_reference_filename=reference_file_for_engine,  # Pass full path or None
-            transcript=request.transcript,  # Pass the optional transcript
-            max_tokens=request.max_tokens,
-            cfg_scale=request.cfg_scale,
-            temperature=request.temperature,
-            top_p=request.top_p,
-            speed_factor=request.speed_factor,
-            cfg_filter_top_k=request.cfg_filter_top_k,
-            seed=request.seed,
-            split_text=request.split_text,
-            chunk_size=request.chunk_size,
-            # Use default post-processing settings
-            enable_silence_trimming=True,
-            enable_internal_silence_fix=True,
-            enable_unvoiced_removal=True,
-        )
+        # Check if this is a long audio request (over 30 seconds of estimated content or explicitly split_text=True)
+        # Average reading speed is about 150 words per minute, or ~15 chars per second
+        estimated_audio_length_seconds = len(request.text) / 15  # Rough estimation
+        use_long_audio = estimated_audio_length_seconds > 30 or request.split_text  # Over 30 seconds or split_text enabled
+        
+        if use_long_audio:
+            logger.info(f"Custom TTS request estimated duration: {estimated_audio_length_seconds:.1f}s - Using long audio processor")
+            try:
+                from app.utils.long_audio import generate_long_audio
+                result = generate_long_audio(
+                    text=request.text,
+                    voice_mode=voice_mode_for_engine,
+                    clone_reference_filename=reference_file_for_engine,
+                    transcript=request.transcript,
+                    max_tokens=request.max_tokens,
+                    cfg_scale=request.cfg_scale,
+                    temperature=request.temperature,
+                    top_p=request.top_p,
+                    speed_factor=request.speed_factor,
+                    cfg_filter_top_k=request.cfg_filter_top_k,
+                    seed=request.seed,
+                    enable_silence_trimming=True,
+                    enable_internal_silence_fix=True,
+                    enable_unvoiced_removal=True,
+                    max_chunk_chars=request.chunk_size
+                )
+            except ImportError as e:
+                logger.error(f"Failed to import long audio utils, falling back to standard generator: {e}")
+                use_long_audio = False
+        
+        if not use_long_audio:
+            # Use standard speech generation for shorter content
+            result = generate_speech(
+                text_to_process=request.text,
+                voice_mode=voice_mode_for_engine,  # Use potentially adjusted mode
+                clone_reference_filename=reference_file_for_engine,  # Pass full path or None
+                transcript=request.transcript,  # Pass the optional transcript
+                max_tokens=request.max_tokens,
+                cfg_scale=request.cfg_scale,
+                temperature=request.temperature,
+                top_p=request.top_p,
+                speed_factor=request.speed_factor,
+                cfg_filter_top_k=request.cfg_filter_top_k,
+                seed=request.seed,
+                split_text=request.split_text,
+                chunk_size=request.chunk_size,
+                # Use default post-processing settings
+                enable_silence_trimming=True,
+                enable_internal_silence_fix=True,
+                enable_unvoiced_removal=True,
+            )
         monitor.record("Generation complete")
 
         if result is None:
